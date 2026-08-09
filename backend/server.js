@@ -53,6 +53,46 @@ app.post('/api/login', (req, res) => {
     res.json({ message: 'Login successful.', email: user.email, role: user.role });
 });
 
+function requireAdmin(req, res, next) {
+    const userEmail = req.headers['x-user-email'];
+
+    if(!userEmail) {
+        return res.status(401).json({ error: 'Not logged in.'});
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(userEmail);
+
+    if(!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required.'});
+    }
+
+    next();
+}
+
+app.post('/api/admin/products', requireAdmin, (req, res) => {
+    const { name, price } = req.body;
+
+    if (!name || !price) {
+        return res.status(400).json({ error: 'Name and price are required.'});
+    }
+
+    const existing = db.prepare('SELECT id FROM products WHERE name = ?').get(name);
+    if (existing) {
+        return res.status(409).json({error: 'A product with that name already exists.'});
+    }
+
+    const insert = db.prepare('INSERT INTO products (name, price) VALUES (?, ?)');
+    const result = insert.run(name, price);
+
+    res.status(201).json({ id: result.lastInsertRowid, name: name, price: price});
+});
+
+app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
+    const { id } = req.params;
+    db.prepare('DELETE FROM products WHERE id = ?').run(id);
+    res.json({ message: 'Product deleted.'});
+});
+
 app.listen(PORT, () => {
     console.log('Server running at http://localhost:' + PORT);
 });
