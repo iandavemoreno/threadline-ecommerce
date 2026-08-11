@@ -61,6 +61,8 @@ function renderCart() {
   if (cart.length === 0) {
     cartItemsEl.innerHTML = '<p>Your cart is empty.</p>';
     document.getElementById('cart-total').textContent = '';
+    document.getElementById('checkout-btn').disabled = true;
+    document.getElementById('checkout-link').style.pointerEvents = 'none';
     return;
   }
 
@@ -120,6 +122,12 @@ const checkoutForm = document.getElementById('checkout-form');
 if (checkoutForm) {
   checkoutForm.addEventListener('submit', function (event) {
     event.preventDefault();
+
+    const cart = getCart();
+    if (cart.length === 0) {
+      document.getElementById('order-confirmation').innerHTML = '<p class="error"> Your cart is empty. Add items before checking out.</p>';
+      return;
+    }
 
     const name = document.getElementById('name').value;
     const email = document.getElementById('email').value;
@@ -218,4 +226,111 @@ if (loginForm) {
             document.getElementById('login-form-error').textContent = 'Something went wrong. Is the backend running?';
          });
     });
+}
+
+const adminAccessMessage = document.getElementById('admin-access-message');
+
+if (adminAccessMessage){
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+if (!loggedInUser || loggedInUser.role !== 'admin') {
+  adminAccessMessage.textContent = 'You must be logged in as an admin to view this page.';
+} else {
+  document.getElementById('admin-content').style.display = "block";
+  loadAdminProducts();
+
+  document.getElementById('add-product-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    const name = document.getElementById('product-name').value;
+    const price = parseFloat(document.getElementById('product-price').value);
+    const errorEl = document.getElementById('add-product-error');
+    errorEl.textContent = '';
+
+    if (!name || isNaN(price)) {
+      errorEl.textContent = 'Enter a valid name and price.';
+      return;
+    }
+
+    fetch('http://localhost:3000/api/admin/products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Email': loggedInUser.email
+      },
+      body: JSON.stringify({ name: name, price: price})
+    })
+    .then(function (response){
+      return response.json().then(function (data) {
+        return {status: response.status, data: data };
+      });
+    })
+    .then(function (result) {
+      if (result.status === 201) {
+        document.getElementById('product-name').value = '';
+        document.getElementById('product-price').value = '';
+        errorEl.textContent = '';
+        showToast('Product added successfully.');
+        loadAdminProducts();
+      } else {
+        errorEl.textContent = result.data.error;
+      }
+    });
+  });
+}
+}
+
+function showToast(message, isError){
+  const toastEl = document.getElementById('toast');
+  if(!toastEl) return;
+
+  toastEl.textContent = message;
+  toastEl.className = 'toast toast-show' + (isError ? 'toast-error' : '');
+
+  setTimeout(function(){
+    toastEl.className = 'toast';
+  },2500);
+}
+
+function loadAdminProducts() {
+  const listEl = document.getElementById('admin-product-list');
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  fetch('http://localhost:3000/api/products')
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function (products) {
+    let html = '';
+    products.forEach(function (product) {
+      html += '<div class="product">';
+      html += '<h3>' + product.name + '</h3>';
+      html += '<p>$' + product.price.toFixed(2) + '(ID: ' + product.id + ')</p>';
+      html += '<button type="button" onclick="deleteAdminProduct(' + product.id +')">Delete</button>';
+      html += '</div>';
+    });
+    listEl.innerHTML = html;
+  });
+}
+
+function deleteAdminProduct(id) {
+  const confirmed = confirm('Are you sure you want to delete this product?');
+  if(!confirmed) return;
+  
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  fetch('http://localhost:3000/api/admin/products/' + id, {
+    method: 'DELETE',
+    headers: { 'X-User-Email': loggedInUser.email }
+  })
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function () {
+    showToast('Product deleted.');
+    loadAdminProducts();
+  })
+  .catch(function() {
+    showToast('Something went wrong deleting the product.', true);
+  });
 }

@@ -1,0 +1,23 @@
+{
+  "name": "my-shop",
+  "version": "1.0.0",
+  "description": "A full-stack e-commerce site built from scratch to practice web development and, eventually, automated testing with Playwright.",
+  "main": "script.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iandavemoreno/threadline-ecommerce.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/iandavemoreno/threadline-ecommerce/issues"
+  },
+  "homepage": "https://github.com/iandavemoreno/threadline-ecommerce#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.2.0"
+  }
+}
