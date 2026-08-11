@@ -26,7 +26,14 @@ jobs:
 
       - name: Start backend server
         working-directory: ./backend
-        run: nohup node server.js &
+        run: nohup node server.js > backend.log 2>&1 &
+
+      - name: Wait for backend to be ready
+        run: npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Show backend log if it failed to start
+        if: failure()
+        run: cat backend/backend.log
 
       - name: Wait for backend to be ready
         run: npx wait-on http://localhost:3000 --timeout 30000
