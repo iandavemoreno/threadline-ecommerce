@@ -35,8 +35,15 @@ jobs:
         if: failure()
         run: cat backend/backend.log
 
-      - name: Wait for backend to be ready
-        run: npx wait-on http://localhost:3000 --timeout 30000
+      - name: Sign up test admin account
+        run: |
+          curl -X POST http://localhost:3000/api/signup \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admintest@example.com","password":"AdminTest123!"}'
+
+      - name: Promote test account to admin
+        working-directory: ./backend
+        run: node makeAdmin.js
 
       - name: Install frontend/test dependencies
         run: npm ci
