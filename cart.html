@@ -1,29 +1,56 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>My Shop - Cart</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
-        <header>
-            <h1>ThreadLine</h1>
-            <nav>
-                <a href="index.html">Home</a>
-                <a href="cart.html">Cart (<span id="cart-count"> 0 </span>)</a>
-            </nav>
-        </header>
+<head>
+    <title>My Shop - Cart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
 
-        <main>
-            <h2>Your Cart</h2>
-            <div id="cart-items"></div>
-            <h3 id="cart-total"></h3>
-            <a href="checkout.html" id="checkout-link"><button id="checkout-btn">Proceed to Checkout</button></a>
-        </main>
+<body>
 
-        <footer>
-            <p>&copy; 2026 ThreadLine</p>
-        </footer>
+    <header>
+        <h1>ThreadLine</h1>
 
-        <script src="script.js"></script>
-    </body>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="cart.html">Cart (<span id="cart-count">0</span>)</a>
+            <button id="signout-btn">Sign Out</button>
+        </nav>
+    </header>
+
+    <main>
+        <h2>Your Cart</h2>
+
+        <div id="cart-items"></div>
+
+        <h3 id="cart-total"></h3>
+
+        <a href="checkout.html" id="checkout-link">
+            <button id="checkout-btn">Proceed to Checkout</button>
+        </a>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 ThreadLine</p>
+    </footer>
+
+    <!-- Remove confirmation modal -->
+    <div id="remove-modal" class="modal">
+        <div class="modal-content">
+            <h3>Remove Product?</h3>
+
+            <p id="remove-message"></p>
+
+            <div class="modal-buttons">
+                <button id="cancel-remove">Cancel</button>
+                <button id="confirm-remove">Remove</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="script.js"></script>
+
+</body>
 </html>

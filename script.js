@@ -1,3 +1,17 @@
+// Show an Admin link in the nav if the logged-in user is an admin
+const loggedInUserNav = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+if (loggedInUserNav && loggedInUserNav.role === 'admin') {
+  const nav = document.querySelector('header nav');
+  if (nav) {
+    const nav = document.querySelector('header nav');
+    if (nav) {
+      const adminLink = document.createElement('a');
+      adminLink.href = 'admin.html';
+      adminLink.textContent = 'Admin';
+      nav.appendChild(adminLink);
+    }
+  }
+}
 function loadProducts() {
   const listEl = document.getElementById('product-list');
   if (!listEl) return; // not on the homepage, skip
@@ -39,7 +53,7 @@ function addToCart(name, price) {
   cart.push({ name: name, price: price });
   saveCart(cart);
   updateCartCount();
-  alert(name + ' added to cart!');
+  showToast(name + ' added to cart!');
 }
 
 function updateCartCount() {
@@ -66,6 +80,10 @@ function renderCart() {
     return;
   }
 
+  // Cart has items, so enable checkout
+  document.getElementById('checkout-btn').disabled = false;
+  document.getElementById('checkout-link').style.pointerEvents = 'auto';
+
   let html = '';
   let total = 0;
 
@@ -82,12 +100,27 @@ function renderCart() {
   document.getElementById('cart-total').textContent = 'Total: $' + total.toFixed(2);
 }
 
+let itemToRemove = null;
+
 function removeFromCart(index) {
-  const cart = getCart();
-  cart.splice(index, 1);
-  saveCart(cart);
-  updateCartCount();
-  renderCart();
+    const cart = getCart();
+    const product = cart[index];
+
+    if (!product) {
+        return;
+    }
+
+    itemToRemove = index;
+
+    const modal = document.getElementById('remove-modal');
+    const message = document.getElementById('remove-message');
+
+    if (modal && message) {
+        message.textContent =
+            'Are you sure you want to remove "' + product.name + '" from your cart?';
+
+        modal.classList.add('show');
+    }
 }
 
 renderCart();
@@ -228,6 +261,16 @@ if (loginForm) {
     });
 }
 
+// Signout
+const signoutBtn = document.getElementById('signout-btn');
+
+if (signoutBtn) {
+  signoutBtn.addEventListener('click', function () {
+    localStorage.removeItem('loggedInUser');
+    window.location.href = 'login.html';
+  });
+}
+
 const adminAccessMessage = document.getElementById('admin-access-message');
 
 if (adminAccessMessage){
@@ -303,13 +346,70 @@ function loadAdminProducts() {
   .then(function (products) {
     let html = '';
     products.forEach(function (product) {
-      html += '<div class="product">';
+      html += '<div class="product" id="product-row-' + product.id + '">';
+      html += '<div class="product-view">';
       html += '<h3>' + product.name + '</h3>';
-      html += '<p>$' + product.price.toFixed(2) + '(ID: ' + product.id + ')</p>';
-      html += '<button type="button" onclick="deleteAdminProduct(' + product.id +')">Delete</button>';
+      html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ')</p>';
+      html += '<button type="button" onclick="editAdminProduct(' + product.id + ', \'' + product.name.replace(/'/g, "\\'") + '\', ' + product.price + ')">Edit</button>';
+      html += '<button type="button" onclick="deleteAdminProduct(' + product.id + ')">Delete</button>';
+      html += '</div>';
       html += '</div>';
     });
     listEl.innerHTML = html;
+  });
+}
+
+function editAdminProduct(id, currentName, currentPrice) {
+  const rowEl = document.getElementById('product-row-' + id);
+  rowEl.innerHTML =
+    '<div class="form-group">' +
+      '<label>Name</label>' +
+      '<input type="text" id="edit-name-' + id + '" value="' + currentName.replace(/"/g, '&quot;') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>Price</label>' +
+      '<input type="text" id="edit-price-' + id + '" value="' + currentPrice + '">' +
+    '</div>' +
+    '<p class="error" id="edit-error-' + id + '"></p>' +
+    '<button type="button" onclick="saveAdminProduct(' + id + ')">Save</button>' +
+    '<button type="button" onclick="loadAdminProducts()">Cancel</button>';
+}
+
+function saveAdminProduct(id) {
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+  const name = document.getElementById('edit-name-' + id).value;
+  const price = parseFloat(document.getElementById('edit-price-' + id).value);
+  const errorEl = document.getElementById('edit-error-' + id);
+  errorEl.textContent = '';
+
+  if (!name || isNaN(price)) {
+    errorEl.textContent = 'Enter a valid name and price.';
+    return;
+  }
+
+  fetch('http://localhost:3000/api/admin/products/' + id, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Email': loggedInUser.email
+    },
+    body: JSON.stringify({ name: name, price: price })
+  })
+  .then(function (response) {
+    return response.json().then(function (data) {
+      return { status: response.status, data: data };
+    });
+  })
+  .then(function (result) {
+    if (result.status === 200) {
+      showToast('Product updated successfully.');
+      loadAdminProducts();
+    } else {
+      errorEl.textContent = result.data.error;
+    }
+  })
+  .catch(function () {
+    errorEl.textContent = 'Something went wrong updating the product.';
   });
 }
 
@@ -333,4 +433,42 @@ function deleteAdminProduct(id) {
   .catch(function() {
     showToast('Something went wrong deleting the product.', true);
   });
+}
+
+const cancelRemoveBtn = document.getElementById('cancel-remove');
+const confirmRemoveBtn = document.getElementById('confirm-remove');
+
+if (cancelRemoveBtn) {
+    cancelRemoveBtn.addEventListener('click', function () {
+        document.getElementById('remove-modal').classList.remove('show');
+        itemToRemove = null;
+    });
+}
+
+if (confirmRemoveBtn) {
+    confirmRemoveBtn.addEventListener('click', function () {
+
+        if (itemToRemove === null) {
+            return;
+        }
+
+        const cart = getCart();
+        const product = cart[itemToRemove];
+
+        if (!product) {
+            return;
+        }
+
+        cart.splice(itemToRemove, 1);
+        saveCart(cart);
+        updateCartCount();
+
+        document.getElementById('remove-modal').classList.remove('show');
+
+        showToast(product.name + ' removed from cart!');
+
+        itemToRemove = null;
+
+        renderCart();
+    });
 }

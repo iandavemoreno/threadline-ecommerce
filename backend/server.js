@@ -87,6 +87,29 @@ app.post('/api/admin/products', requireAdmin, (req, res) => {
     res.status(201).json({ id: result.lastInsertRowid, name: name, price: price});
 });
 
+app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
+    const { id } = req.params;
+    const { name, price } = req.body;
+
+    if (!name || !price) {
+        return res.status(400).json({ error: 'Name and price are required.' });
+    }
+
+    const existing = db.prepare('SELECT id FROM products WHERE name = ? AND id != ?').get(name, id);
+    if (existing) {
+        return res.status(409).json({ error: 'A product with that name already exists.'});
+    }
+
+    const update = db.prepare('UPDATE products SET name = ?, price = ? WHERE id = ?');
+    const result = update.run(name, price, id);
+
+    if(result.changes === 0) {
+        return res.status(404).json({ error: 'Product not found'});
+    }
+
+    res.json({ id, name, price });
+});
+
 app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
     const { id } = req.params;
     db.prepare('DELETE FROM products WHERE id = ?').run(id);
