@@ -12,29 +12,116 @@ if (loggedInUserNav && loggedInUserNav.role === 'admin') {
     }
   }
 }
-function loadProducts() {
-  const listEl = document.getElementById('product-list');
-  if (!listEl) return; // not on the homepage, skip
 
-  fetch('http://localhost:3000/api/products')
-  .then(function (response) {
-    return response.json();
-  })
-  .then(function (products) {
-    let html = '';
-    products.forEach(function (product) {
-      html += '<div class="product">';
-      html += '<h3>' + product.name + '</h3>';
-      html += '<p>$' + product.price.toFixed(2) +  '</p>';
-      html += '<button onclick="addToCart(\'' + product.name + '\', ' + product.price + ')">Add to Cart</button>';
-      html += '</div>';
-    });
-    listEl.innerHTML = html;
-  })
-  .catch(function (error) {
-    listEl.innerHTML = '<p>Could not load products, is the backend server running?</p>';
-    console.error('Error loading products:', error);
-  });
+function loadProducts() {
+    const listEl = document.getElementById('product-list');
+
+    if (!listEl) return;
+
+    const searchInput = document.getElementById('product-search');
+    const searchBtn = document.getElementById('search-btn');
+    const clearBtn = document.getElementById('clear-search-btn');
+    const noProductsMessage = document.getElementById('no-products-message');
+
+    let allProducts = [];
+
+    fetch('http://localhost:3000/api/products')
+        .then(function (response) {
+            return response.json();
+        })
+        .then(function (products) {
+
+            allProducts = products;
+
+            function displayProducts(productsToDisplay) {
+
+                let html = '';
+
+                if (productsToDisplay.length === 0) {
+                    listEl.innerHTML = '';
+                    noProductsMessage.style.display = 'block';
+                    return;
+                }
+
+                noProductsMessage.style.display = 'none';
+
+                productsToDisplay.forEach(function (product) {
+
+                    html += '<div class="product">';
+
+                    html += '<h3>' + product.name + '</h3>';
+
+                    html += '<p>$' + product.price.toFixed(2) + '</p>';
+
+                    html += '<button onclick="addToCart(\'' +
+                        product.name +
+                        '\', ' +
+                        product.price +
+                        ')">Add to Cart</button>';
+
+                    html += '</div>';
+                });
+
+                listEl.innerHTML = html;
+            }
+
+
+            // Display all products when the page loads
+            displayProducts(allProducts);
+
+
+            // Search button
+            if (searchBtn) {
+                searchBtn.addEventListener('click', function () {
+
+                    const searchTerm = searchInput.value
+                        .trim()
+                        .toLowerCase();
+
+                    const filteredProducts = allProducts.filter(function (product) {
+
+                        return product.name
+                            .toLowerCase()
+                            .includes(searchTerm);
+
+                    });
+
+                    displayProducts(filteredProducts);
+                });
+            }
+
+
+            // Search when pressing Enter
+            if (searchInput) {
+                searchInput.addEventListener('keydown', function (event) {
+
+                    if (event.key === 'Enter') {
+                        searchBtn.click();
+                    }
+
+                });
+            }
+
+
+            // Clear search
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function () {
+
+                    searchInput.value = '';
+
+                    displayProducts(allProducts);
+
+                    searchInput.focus();
+                });
+            }
+
+        })
+        .catch(function () {
+
+            listEl.innerHTML =
+                '<p>Unable to load products. Is the backend running?</p>';
+
+        });
 }
 
 loadProducts();
