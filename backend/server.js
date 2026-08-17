@@ -116,6 +116,144 @@ app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
     res.json({ message: 'Product deleted.'});
 });
 
+app.post('/api/orders', (req, res) => {
+
+    const {
+        email,
+        customerName,
+        address,
+        items
+    } = req.body;
+
+
+    // Validate required information
+    if (
+        !email ||
+        !customerName ||
+        !address ||
+        !items ||
+        items.length === 0
+    ) {
+        return res.status(400).json({
+            error: 'Customer information and order items are required.'
+        });
+    }
+
+
+    // Find the user
+    const user = db
+        .prepare('SELECT id, email FROM users WHERE email = ?')
+        .get(email);
+
+    if (!user) {
+        return res.status(404).json({
+            error: 'User not found.'
+        });
+    }
+
+
+    // Calculate the total using prices from the database
+    let total = 0;
+    const orderItems = [];
+
+
+    for (const item of items) {
+
+        const product = db
+            .prepare(
+                'SELECT id, name, price FROM products WHERE id = ?'
+            )
+            .get(item.productId);
+
+
+        if (!product) {
+            return res.status(404).json({
+                error: `Product with ID ${item.productId} not found.`
+            });
+        }
+
+
+        const quantity = Number(item.quantity) || 1;
+
+        total += product.price * quantity;
+
+
+        orderItems.push({
+            productId: product.id,
+            productName: product.name,
+            price: product.price,
+            quantity
+        });
+    }
+
+
+    // Create order and order items together
+    const createOrder = db.transaction(() => {
+
+        const orderResult = db
+            .prepare(`
+                INSERT INTO orders (
+                    user_id,
+                    customer_name,
+                    email,
+                    address,
+                    total
+                )
+                VALUES (?, ?, ?, ?, ?)
+            `)
+            .run(
+                user.id,
+                customerName,
+                email,
+                address,
+                total
+            );
+
+
+        const orderId = orderResult.lastInsertRowid;
+
+
+        const insertItem = db.prepare(`
+            INSERT INTO order_items (
+                order_id,
+                product_id,
+                product_name,
+                price,
+                quantity
+            )
+            VALUES (?, ?, ?, ?, ?)
+        `);
+
+
+        for (const item of orderItems) {
+
+            insertItem.run(
+                orderId,
+                item.productId,
+                item.productName,
+                item.price,
+                item.quantity
+            );
+
+        }
+
+
+        return orderId;
+    });
+
+
+    const orderId = createOrder();
+
+
+    // Send successful response
+    res.status(201).json({
+        message: 'Order placed successfully.',
+        orderId,
+        total
+    });
+
+});
+
 app.listen(PORT, () => {
     console.log('Server running at http://localhost:' + PORT);
 });
