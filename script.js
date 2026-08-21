@@ -314,37 +314,52 @@ if (signupForm) {
 const loginForm = document.getElementById('login-form');
 
 if (loginForm) {
-    loginForm.addEventListener('submit', function (event){
-         event.preventDefault();
+    loginForm.addEventListener('submit', async function (event) {
+        event.preventDefault();
 
-         document.getElementById('login-email-error').textContent = '';
-         document.getElementById('login-password-error').textContent = '';
-         document.getElementById('login-form-error').textContent = '';
+        const emailError = document.getElementById('login-email-error');
+        const passwordError = document.getElementById('login-password-error');
+        const formError = document.getElementById('login-form-error');
 
-         const email = document.getElementById('login-email').value;
-         const password = document.getElementById('login-password').value;
+        emailError.textContent = '';
+        passwordError.textContent = '';
+        formError.textContent = '';
 
-         fetch ('http://localhost:3000/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, password: password})
-         })
-         .then(function (response) {
-            return response.json().then(function (data) {
-                return { status: response.status, data: data };
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+
+        try {
+            const response = await fetch('http://127.0.0.1:3000/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
             });
-         })
-         .then(function (result) {
-            if  (result.status === 200) {
-                localStorage.setItem('loggedInUser', JSON.stringify(result.data));
-                window.location.href = 'index.html';
-            } else {
-                document.getElementById('login-form-error').textContent = result.data.error;
+
+            const data = await response.json();
+
+            if (response.ok) {
+                localStorage.setItem(
+                    'loggedInUser',
+                    JSON.stringify(data)
+                );
+
+                window.location.assign('index.html');
+                return;
             }
-         })
-         .catch(function() {
-            document.getElementById('login-form-error').textContent = 'Something went wrong. Is the backend running?';
-         });
+
+            formError.textContent = data.error || 'Login failed.';
+
+        } catch (error) {
+            console.error('Login request failed:', error);
+
+            formError.textContent =
+                'Something went wrong. Is the backend running?';
+        }
     });
 }
 
