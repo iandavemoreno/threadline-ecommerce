@@ -1,6 +1,12 @@
 const Database = require('better-sqlite3');
+const path = require('path');
 
-const db = new Database('shop.db');
+// Always resolve shop.db next to this file, regardless of the directory
+// the process was launched from (a bare relative path here would resolve
+// against process.cwd(), which silently created two different databases
+// depending on whether the server was started from the project root or
+// from backend/).
+const db = new Database(path.join(__dirname, 'shop.db'));
 
 
 // ========================================
