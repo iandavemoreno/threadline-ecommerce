@@ -18,7 +18,7 @@ test.describe('Product Search', () => {
 
         await page.fill(
             '#login-password',
-            'AdminTest123!'
+            'Admin123!'
         );
 
         await page.click('button[type="submit"]');

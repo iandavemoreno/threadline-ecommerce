@@ -4,7 +4,7 @@ test('admin can log in, add a product, and delete it', async ({ page }) => {
   // Log in as admin
   await page.goto('/login.html');
   await page.fill('#login-email', 'admintest@example.com');
-  await page.fill('#login-password', 'AdminTest123!');
+  await page.fill('#login-password', 'Admin123!');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/index\.html/);
 

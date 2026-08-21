@@ -6,7 +6,7 @@ test('admin can edit an existing product', async ({ page }) => {
     await page.goto('/login.html');
 
     await page.fill('#login-email', 'admintest@example.com');
-    await page.fill('#login-password', 'AdminTest123!');
+    await page.fill('#login-password', 'Admin123!');
 
     await page.click('button[type="submit"]');
 
