@@ -40,7 +40,10 @@ test('user can log in successfully', async ({ page }) => {
   const loginResponse = await loginResponsePromise;
 
   console.log('LOGIN STATUS:', loginResponse.status());
-  console.log('LOGIN RESPONSE:', await loginResponse.text());
+  // Not reading the response body here: in Chromium the app navigates to
+  // index.html almost immediately after this response, and the body is
+  // sometimes no longer available over CDP by the time we try to read it
+  // (navigated-away response). Status is sufficient for this check.
 
   console.log('CURRENT URL:', page.url());
 

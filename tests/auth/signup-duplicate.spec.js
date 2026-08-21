@@ -15,12 +15,18 @@ test('signup rejects an already-used email', async ({ page }) => {
     await page.goto('/signup.html');
     await page.fill('#signup-email', email);
     await page.fill('#signup-password', password);
+
+    const signupResponsePromise = page.waitForResponse(response =>
+        response.url().includes('/api/signup') &&
+        response.request().method() === 'POST'
+    );
+
     await page.click('button[type="submit"]');
+    await signupResponsePromise;
 
     // SHould stay on signup.html, not redirect
     await expect(page).toHaveURL(/signup\.html/);
 
-    // Some error text should appear somewhere on the page
-    const errorText = await page.locator('#signup-form-error, #singup-email-error').allTextContents();
-    expect(errorText.join('')).not.toBe('');
+    // Error text should appear in the signup form's error element
+    await expect(page.locator('#signup-form-error')).not.toBeEmpty();
 });
