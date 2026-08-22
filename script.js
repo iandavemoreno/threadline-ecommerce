@@ -58,7 +58,28 @@ function loadProducts() {
 
                     html += '<p>$' + product.price.toFixed(2) + '</p>';
 
-                    html += '<button onclick="addToCart(' +
+                    // How many of this product are already sitting in the
+                    // cart - "remaining" is what's left to add, and it
+                    // recalculates on every render (loadProducts() re-runs
+                    // after each addToCart), so the count updates live as
+                    // you click. The backend's own check at checkout time is
+                    // still the actual source of truth.
+                    const inCartCount = getCart().filter(function (item) {
+                        return item.productId === product.id;
+                    }).length;
+
+                    const remaining = product.stock - inCartCount;
+
+                    if (product.stock === 0) {
+                        html += '<p class="stock-message out-of-stock">Out of stock</p>';
+                    } else if (remaining <= 0) {
+                        html += '<p class="stock-message">All ' + product.stock + ' in stock are already in your cart</p>';
+                    } else {
+                        html += '<p class="stock-message">' + remaining + ' in stock</p>';
+                    }
+
+                    html += '<button' + (remaining > 0 ? '' : ' disabled') +
+                        ' onclick="addToCart(' +
                         product.id +
                         ', \'' +
                         product.name.replace(/'/g, "\\'") +
@@ -148,6 +169,8 @@ function addToCart(id, name, price) {
   saveCart(cart);
   updateCartCount();
   showToast(name + ' added to cart!');
+  // Re-render so the stock message/button reflect what's now in the cart
+  loadProducts();
 }
 
 function updateCartCount() {
@@ -447,11 +470,12 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
 
     const name = document.getElementById('product-name').value;
     const price = parseFloat(document.getElementById('product-price').value);
+    const stock = parseInt(document.getElementById('product-stock').value, 10);
     const errorEl = document.getElementById('add-product-error');
     errorEl.textContent = '';
 
-    if (!name || isNaN(price)) {
-      errorEl.textContent = 'Enter a valid name and price.';
+    if (!name || isNaN(price) || isNaN(stock) || stock < 0) {
+      errorEl.textContent = 'Enter a valid name, price, and stock.';
       return;
     }
 
@@ -461,7 +485,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
         'Content-Type': 'application/json',
         'X-User-Email': loggedInUser.email
       },
-      body: JSON.stringify({ name: name, price: price})
+      body: JSON.stringify({ name: name, price: price, stock: stock})
     })
     .then(function (response){
       return response.json().then(function (data) {
@@ -472,6 +496,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
       if (result.status === 201) {
         document.getElementById('product-name').value = '';
         document.getElementById('product-price').value = '';
+        document.getElementById('product-stock').value = '';
         errorEl.textContent = '';
         showToast('Product added successfully.');
         loadAdminProducts();
@@ -509,8 +534,8 @@ function loadAdminProducts() {
       html += '<div class="product" id="product-row-' + product.id + '">';
       html += '<div class="product-view">';
       html += '<h3>' + product.name + '</h3>';
-      html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ')</p>';
-      html += '<button type="button" onclick="editAdminProduct(' + product.id + ', \'' + product.name.replace(/'/g, "\\'") + '\', ' + product.price + ')">Edit</button>';
+      html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ') - Stock: ' + product.stock + '</p>';
+      html += '<button type="button" onclick="editAdminProduct(' + product.id + ', \'' + product.name.replace(/'/g, "\\'") + '\', ' + product.price + ', ' + product.stock + ')">Edit</button>';
       html += '<button type="button" onclick="deleteAdminProduct(' + product.id + ')">Delete</button>';
       html += '</div>';
       html += '</div>';
@@ -519,7 +544,7 @@ function loadAdminProducts() {
   });
 }
 
-function editAdminProduct(id, currentName, currentPrice) {
+function editAdminProduct(id, currentName, currentPrice, currentStock) {
   const rowEl = document.getElementById('product-row-' + id);
   rowEl.innerHTML =
     '<div class="form-group">' +
@@ -530,6 +555,10 @@ function editAdminProduct(id, currentName, currentPrice) {
       '<label>Price</label>' +
       '<input type="text" id="edit-price-' + id + '" value="' + currentPrice + '">' +
     '</div>' +
+    '<div class="form-group">' +
+      '<label>Stock</label>' +
+      '<input type="text" id="edit-stock-' + id + '" value="' + currentStock + '">' +
+    '</div>' +
     '<p class="error" id="edit-error-' + id + '"></p>' +
     '<button type="button" onclick="saveAdminProduct(' + id + ')">Save</button>' +
     '<button type="button" onclick="loadAdminProducts()">Cancel</button>';
@@ -539,11 +568,12 @@ function saveAdminProduct(id) {
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
   const name = document.getElementById('edit-name-' + id).value;
   const price = parseFloat(document.getElementById('edit-price-' + id).value);
+  const stock = parseInt(document.getElementById('edit-stock-' + id).value, 10);
   const errorEl = document.getElementById('edit-error-' + id);
   errorEl.textContent = '';
 
-  if (!name || isNaN(price)) {
-    errorEl.textContent = 'Enter a valid name and price.';
+  if (!name || isNaN(price) || isNaN(stock) || stock < 0) {
+    errorEl.textContent = 'Enter a valid name, price, and stock.';
     return;
   }
 
@@ -553,7 +583,7 @@ function saveAdminProduct(id) {
       'Content-Type': 'application/json',
       'X-User-Email': loggedInUser.email
     },
-    body: JSON.stringify({ name: name, price: price })
+    body: JSON.stringify({ name: name, price: price, stock: stock })
   })
   .then(function (response) {
     return response.json().then(function (data) {

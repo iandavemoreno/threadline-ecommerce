@@ -247,3 +247,14 @@ button:disabled:hover {
 .order-total {
     font-weight: bold;
 }
+
+.stock-message {
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.stock-message.out-of-stock {
+    color: #c0392b;
+    font-weight: bold;
+}

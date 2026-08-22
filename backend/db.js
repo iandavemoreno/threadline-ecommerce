@@ -21,6 +21,16 @@ db.exec(`
     )
 `);
 
+// Migration: add the stock column for databases created before stock
+// tracking existed. DEFAULT 10 backfills every existing product with a
+// usable stock count instead of leaving them all stuck at 0/out-of-stock.
+const productColumns = db.prepare('PRAGMA table_info(products)').all();
+const hasStockColumn = productColumns.some((col) => col.name === 'stock');
+
+if (!hasStockColumn) {
+    db.exec('ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 10');
+}
+
 
 // ========================================
 // USERS TABLE
@@ -80,12 +90,12 @@ const count = db
 if (count.total === 0) {
 
     const insert = db.prepare(
-        'INSERT INTO products (name, price) VALUES (?, ?)'
+        'INSERT INTO products (name, price, stock) VALUES (?, ?, ?)'
     );
 
-    insert.run('Classic White Tee', 20.00);
-    insert.run('Black Crew Neck', 25.00);
-    insert.run('Navy Striped Tee', 22.00);
+    insert.run('Classic White Tee', 20.00, 15);
+    insert.run('Black Crew Neck', 25.00, 15);
+    insert.run('Navy Striped Tee', 22.00, 15);
 }
 
 

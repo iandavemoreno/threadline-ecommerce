@@ -69,6 +69,24 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+// Products created without a stock value (e.g. older API callers/tests that
+// predate stock tracking) default to this rather than being rejected.
+const DEFAULT_STOCK = 10;
+
+function parseStock(stock) {
+    if (stock === undefined || stock === null || stock === '') {
+        return null;
+    }
+
+    const stockNumber = Number(stock);
+
+    if (!Number.isInteger(stockNumber) || stockNumber < 0) {
+        return NaN;
+    }
+
+    return stockNumber;
+}
+
 app.post('/api/admin/products', requireAdmin, (req, res) => {
     const { name, price } = req.body;
 
@@ -76,15 +94,25 @@ app.post('/api/admin/products', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Name and price are required.'});
     }
 
+    let stockNumber = parseStock(req.body.stock);
+
+    if (Number.isNaN(stockNumber)) {
+        return res.status(400).json({ error: 'Stock must be a whole number of 0 or more.' });
+    }
+
+    if (stockNumber === null) {
+        stockNumber = DEFAULT_STOCK;
+    }
+
     const existing = db.prepare('SELECT id FROM products WHERE name = ?').get(name);
     if (existing) {
         return res.status(409).json({error: 'A product with that name already exists.'});
     }
 
-    const insert = db.prepare('INSERT INTO products (name, price) VALUES (?, ?)');
-    const result = insert.run(name, price);
+    const insert = db.prepare('INSERT INTO products (name, price, stock) VALUES (?, ?, ?)');
+    const result = insert.run(name, price, stockNumber);
 
-    res.status(201).json({ id: result.lastInsertRowid, name: name, price: price});
+    res.status(201).json({ id: result.lastInsertRowid, name: name, price: price, stock: stockNumber });
 });
 
 app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
@@ -95,19 +123,33 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Name and price are required.' });
     }
 
-    const existing = db.prepare('SELECT id FROM products WHERE name = ? AND id != ?').get(name, id);
-    if (existing) {
-        return res.status(409).json({ error: 'A product with that name already exists.'});
-    }
+    const existingProduct = db.prepare('SELECT stock FROM products WHERE id = ?').get(id);
 
-    const update = db.prepare('UPDATE products SET name = ?, price = ? WHERE id = ?');
-    const result = update.run(name, price, id);
-
-    if(result.changes === 0) {
+    if (!existingProduct) {
         return res.status(404).json({ error: 'Product not found'});
     }
 
-    res.json({ id, name, price });
+    let stockNumber = parseStock(req.body.stock);
+
+    if (Number.isNaN(stockNumber)) {
+        return res.status(400).json({ error: 'Stock must be a whole number of 0 or more.' });
+    }
+
+    // Stock left unspecified on an edit keeps whatever it already was,
+    // rather than silently resetting it.
+    if (stockNumber === null) {
+        stockNumber = existingProduct.stock;
+    }
+
+    const existingNameClash = db.prepare('SELECT id FROM products WHERE name = ? AND id != ?').get(name, id);
+    if (existingNameClash) {
+        return res.status(409).json({ error: 'A product with that name already exists.'});
+    }
+
+    const update = db.prepare('UPDATE products SET name = ?, price = ?, stock = ? WHERE id = ?');
+    update.run(name, price, stockNumber, id);
+
+    res.json({ id, name, price, stock: stockNumber });
 });
 
 app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
@@ -115,6 +157,17 @@ app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
     db.prepare('DELETE FROM products WHERE id = ?').run(id);
     res.json({ message: 'Product deleted.'});
 });
+
+// Thrown from inside the orders transaction below to reject the whole order
+// (and roll back any stock already decremented for earlier items in the
+// same order) with a specific status/message, without special-casing
+// db.transaction()'s return value.
+class OrderValidationError extends Error {
+    constructor(status, message) {
+        super(message);
+        this.status = status;
+    }
+}
 
 app.post('/api/orders', (req, res) => {
 
@@ -152,43 +205,62 @@ app.post('/api/orders', (req, res) => {
     }
 
 
-    // Calculate the total using prices from the database
-    let total = 0;
-    const orderItems = [];
+    // Look up products, reserve stock, and create the order + order items
+    // all inside one transaction so a stock failure partway through a
+    // multi-item order rolls back everything that came before it - nothing
+    // gets decremented for an order that ultimately doesn't go through.
+    const createOrder = db.transaction(() => {
 
+        let total = 0;
+        const orderItems = [];
 
-    for (const item of items) {
+        for (const item of items) {
 
-        const product = db
-            .prepare(
-                'SELECT id, name, price FROM products WHERE id = ?'
-            )
-            .get(item.productId);
+            const product = db
+                .prepare(
+                    'SELECT id, name, price FROM products WHERE id = ?'
+                )
+                .get(item.productId);
 
+            if (!product) {
+                throw new OrderValidationError(
+                    404,
+                    `Product with ID ${item.productId} not found.`
+                );
+            }
 
-        if (!product) {
-            return res.status(404).json({
-                error: `Product with ID ${item.productId} not found.`
+            const quantity = Number(item.quantity) || 1;
+
+            // Atomic check-and-decrement: the WHERE clause only lets this
+            // succeed if there's still enough stock, so two orders racing
+            // for the last units can't both succeed.
+            const decrement = db
+                .prepare(
+                    'UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?'
+                )
+                .run(quantity, product.id, quantity);
+
+            if (decrement.changes === 0) {
+                const current = db
+                    .prepare('SELECT stock FROM products WHERE id = ?')
+                    .get(product.id);
+
+                throw new OrderValidationError(
+                    409,
+                    `Only ${current.stock} left in stock for ${product.name}.`
+                );
+            }
+
+            total += product.price * quantity;
+
+            orderItems.push({
+                productId: product.id,
+                productName: product.name,
+                price: product.price,
+                quantity
             });
         }
 
-
-        const quantity = Number(item.quantity) || 1;
-
-        total += product.price * quantity;
-
-
-        orderItems.push({
-            productId: product.id,
-            productName: product.name,
-            price: product.price,
-            quantity
-        });
-    }
-
-
-    // Create order and order items together
-    const createOrder = db.transaction(() => {
 
         const orderResult = db
             .prepare(`
@@ -238,19 +310,28 @@ app.post('/api/orders', (req, res) => {
         }
 
 
-        return orderId;
+        return { orderId, total };
     });
 
 
-    const orderId = createOrder();
+    try {
 
+        const { orderId, total } = createOrder();
 
-    // Send successful response
-    res.status(201).json({
-        message: 'Order placed successfully.',
-        orderId,
-        total
-    });
+        res.status(201).json({
+            message: 'Order placed successfully.',
+            orderId,
+            total
+        });
+
+    } catch (err) {
+
+        if (err instanceof OrderValidationError) {
+            return res.status(err.status).json({ error: err.message });
+        }
+
+        throw err;
+    }
 
 });
 
