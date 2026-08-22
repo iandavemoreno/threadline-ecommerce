@@ -1,10 +1,15 @@
-// Show an Admin link in the nav if the logged-in user is an admin
+// Show a "My Orders" link for any logged-in user, and an Admin link on top
+// of that for admins
 const loggedInUserNav = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
-if (loggedInUserNav && loggedInUserNav.role === 'admin') {
+if (loggedInUserNav) {
   const nav = document.querySelector('header nav');
   if (nav) {
-    const nav = document.querySelector('header nav');
-    if (nav) {
+    const ordersLink = document.createElement('a');
+    ordersLink.href = 'orders.html';
+    ordersLink.textContent = 'My Orders';
+    nav.appendChild(ordersLink);
+
+    if (loggedInUserNav.role === 'admin') {
       const adminLink = document.createElement('a');
       adminLink.href = 'admin.html';
       adminLink.textContent = 'Admin';
@@ -53,8 +58,10 @@ function loadProducts() {
 
                     html += '<p>$' + product.price.toFixed(2) + '</p>';
 
-                    html += '<button onclick="addToCart(\'' +
-                        product.name +
+                    html += '<button onclick="addToCart(' +
+                        product.id +
+                        ', \'' +
+                        product.name.replace(/'/g, "\\'") +
                         '\', ' +
                         product.price +
                         ')">Add to Cart</button>';
@@ -135,9 +142,9 @@ function saveCart(cart) {
   localStorage.setItem('cart', JSON.stringify(cart));
 }
 
-function addToCart(name, price) {
+function addToCart(id, name, price) {
   const cart = getCart();
-  cart.push({ name: name, price: price });
+  cart.push({ productId: id, name: name, price: price });
   saveCart(cart);
   updateCartCount();
   showToast(name + ' added to cart!');
@@ -237,6 +244,27 @@ function validateCheckoutForm(name, email,address) {
   return isValid;
 }
 
+// Checkout requires being logged in - the account is what "My Orders" later
+// looks up orders by, so the email field is locked to it rather than
+// free-typed.
+const checkoutAccessMessage = document.getElementById('checkout-access-message');
+
+if (checkoutAccessMessage) {
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  if (!loggedInUser) {
+    checkoutAccessMessage.textContent = 'You must be logged in to check out.';
+  } else {
+    document.getElementById('checkout-content').style.display = 'block';
+
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+      emailInput.value = loggedInUser.email;
+      emailInput.readOnly = true;
+    }
+  }
+}
+
 const checkoutForm = document.getElementById('checkout-form');
 
 if (checkoutForm) {
@@ -254,13 +282,43 @@ if (checkoutForm) {
     const address = document.getElementById('address').value;
 
     const isValid = validateCheckoutForm(name, email, address);
-    
-    if (isValid) {
-      localStorage.removeItem('cart');
-      updateCartCount();
-      checkoutForm.style.display = 'none';
-      document.getElementById('order-confirmation').innerHTML = '<p> Thank you, ' + name + '! Your oreder has been placed. </p>';
-    }
+
+    if (!isValid) return;
+
+    const items = cart.map(function (item) {
+      return { productId: item.productId, quantity: 1 };
+    });
+
+    fetch('http://localhost:3000/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        customerName: name,
+        address: address,
+        items: items
+      })
+    })
+    .then(function (response) {
+      return response.json().then(function (data) {
+        return { status: response.status, data: data };
+      });
+    })
+    .then(function (result) {
+      if (result.status === 201) {
+        localStorage.removeItem('cart');
+        updateCartCount();
+        checkoutForm.style.display = 'none';
+        document.getElementById('order-confirmation').innerHTML = '<p> Thank you, ' + name + '! Your oreder has been placed. </p>';
+      } else {
+        document.getElementById('order-confirmation').innerHTML =
+          '<p class="error">' + (result.data.error || 'Something went wrong placing your order.') + '</p>';
+      }
+    })
+    .catch(function () {
+      document.getElementById('order-confirmation').innerHTML =
+        '<p class="error">Something went wrong. Is the backend running?</p>';
+    });
   });
 }
 
@@ -573,4 +631,66 @@ if (confirmRemoveBtn) {
 
         renderCart();
     });
+}
+
+// My Orders page
+function loadOrders() {
+  const listEl = document.getElementById('orders-list');
+  if (!listEl) return;
+
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+  const noOrdersMessage = document.getElementById('no-orders-message');
+
+  fetch('http://localhost:3000/api/orders', {
+    headers: { 'X-User-Email': loggedInUser.email }
+  })
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function (orders) {
+
+    if (orders.length === 0) {
+      listEl.innerHTML = '';
+      noOrdersMessage.style.display = 'block';
+      return;
+    }
+
+    noOrdersMessage.style.display = 'none';
+
+    let html = '';
+
+    orders.forEach(function (order) {
+      html += '<div class="product order" id="order-' + order.id + '">';
+      html += '<h3>Order #' + order.id + '</h3>';
+      html += '<p>' + new Date(order.created_at).toLocaleString() + '</p>';
+      html += '<p>Shipping to: ' + order.address + '</p>';
+      html += '<ul>';
+
+      order.items.forEach(function (item) {
+        html += '<li>' + item.product_name + ' x' + item.quantity + ' - $' + item.price.toFixed(2) + '</li>';
+      });
+
+      html += '</ul>';
+      html += '<p class="order-total">Total: $' + order.total.toFixed(2) + '</p>';
+      html += '</div>';
+    });
+
+    listEl.innerHTML = html;
+  })
+  .catch(function () {
+    listEl.innerHTML = '<p>Unable to load orders. Is the backend running?</p>';
+  });
+}
+
+const ordersAccessMessage = document.getElementById('orders-access-message');
+
+if (ordersAccessMessage) {
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  if (!loggedInUser) {
+    ordersAccessMessage.textContent = 'You must be logged in to view your orders.';
+  } else {
+    document.getElementById('orders-content').style.display = 'block';
+    loadOrders();
+  }
 }

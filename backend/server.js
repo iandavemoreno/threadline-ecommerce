@@ -254,6 +254,40 @@ app.post('/api/orders', (req, res) => {
 
 });
 
+app.get('/api/orders', (req, res) => {
+    const userEmail = req.headers['x-user-email'];
+
+    if (!userEmail) {
+        return res.status(401).json({ error: 'Not logged in.' });
+    }
+
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(userEmail);
+
+    if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const orders = db
+        .prepare(`
+            SELECT id, customer_name, email, address, total, created_at
+            FROM orders
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        `)
+        .all(user.id);
+
+    const getItems = db.prepare(
+        'SELECT product_id, product_name, price, quantity FROM order_items WHERE order_id = ?'
+    );
+
+    const ordersWithItems = orders.map((order) => ({
+        ...order,
+        items: getItems.all(order.id)
+    }));
+
+    res.json(ordersWithItems);
+});
+
 app.listen(PORT, () => {
     console.log('Server running at http://localhost:' + PORT);
 });

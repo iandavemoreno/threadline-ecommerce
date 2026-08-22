@@ -239,3 +239,11 @@ button:disabled:hover {
     color: #c0392b;
     margin-bottom: 20px;
 }
+
+.order ul {
+    margin: 8px 0 12px 20px;
+}
+
+.order-total {
+    font-weight: bold;
+}

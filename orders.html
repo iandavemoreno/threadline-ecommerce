@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>My Shop - My Orders</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <header>
+            <h1>ThreadLine</h1>
+            <nav>
+                <a href="index.html">Home</a>
+                <a href="cart.html">Cart (<span id="cart-count">0</span>)</a>
+                <button id="signout-btn">Sign Out</button>
+            </nav>
+        </header>
+
+        <main>
+            <h2>My Orders</h2>
+            <p id="orders-access-message"></p>
+
+            <div id="orders-content" style="display: none;">
+                <p id="no-orders-message" class="no-products-message">
+                    You haven't placed any orders yet.
+                </p>
+                <div id="orders-list"></div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 ThreadLine</p>
+        </footer>
+
+        <script src="script.js"></script>
+    </body>
+</html>
