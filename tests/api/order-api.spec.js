@@ -1,13 +1,14 @@
 const { test, expect } = require('@playwright/test');
+const { API_BASE_URL, ADMIN_EMAIL } = require('../helpers/config');
 
 test.describe('Orders API', () => {
     test('user can create an order', async ({ request }) => {
 
         const response = await request.post(
-            'http://localhost:3000/api/orders',
+            `${API_BASE_URL}/api/orders`,
             {
                 data: {
-                    email: 'admintest@example.com',
+                    email: ADMIN_EMAIL,
                     customerName: 'Automation Test User',
                     address: '123 Automation Street',
                     items: [
@@ -37,7 +38,7 @@ test.describe('Orders API', () => {
     test('order cannot be created without customer information', async ({ request }) => {
 
         const response = await request.post(
-            'http://localhost:3000/api/orders',
+            `${API_BASE_URL}/api/orders`,
             {
                 data: {
                     email: '',
@@ -58,7 +59,7 @@ test.describe('Orders API', () => {
 
     test('order cannot be created for an unknown user', async ({ request }) => {
         const response = await request.post(
-            'http://localhost:3000/api/orders',
+            `${API_BASE_URL}/api/orders`,
             {
                 data: {
                     email: 'doesnotexist@example.com',
@@ -85,10 +86,10 @@ test.describe('Orders API', () => {
     test('order cannot be created with an invalid product', async ({ request }) => {
 
         const response = await request.post(
-            'http://localhost:3000/api/orders',
+            `${API_BASE_URL}/api/orders`,
             {
                 data: {
-                    email: 'admintest@example.com',
+                    email: ADMIN_EMAIL,
                     customerName: 'Automation Test User',
                     address: '123 Automation Street',
                     items: [
@@ -112,10 +113,10 @@ test.describe('Orders API', () => {
     test('order cannot be created with an empty item list', async ({ request }) => {
         
         const response = await request.post(
-            'http://localhost:3000/api/orders',
+            `${API_BASE_URL}/api/orders`,
             {
                 data: {
-                    email: 'admintest@example.com',
+                    email: ADMIN_EMAIL,
                     customerName: 'Automation Test User',
                     address: '123 Automation Street',
                     items: []
