@@ -1,113 +1,41 @@
 const { test, expect } = require('@playwright/test');
+const LoginPage = require('../../pages/LoginPage');
+const AdminPage = require('../../pages/AdminPage');
 const { ADMIN_EMAIL, ADMIN_PASSWORD } = require('../helpers/config');
+const { createTestProduct } = require('../helpers/test-data');
 
 test('admin can edit an existing product', async ({ page }) => {
 
+    const loginPage = new LoginPage(page);
+    const adminPage = new AdminPage(page);
+
     // Log in as admin
-    await page.goto('/login.html');
-
-    await page.fill('#login-email', ADMIN_EMAIL);
-    await page.fill('#login-password', ADMIN_PASSWORD);
-
-    await page.click('button[type="submit"]');
-
-    await expect(page).toHaveURL(/index.html/);
-
+    await loginPage.goto();
+    await loginPage.login(ADMIN_EMAIL, ADMIN_PASSWORD);
+    await expect(page).toHaveURL(/index\.html/);
 
     // Go to admin dashboard
-    await page.goto('/admin.html');
-
-    await expect(page.locator('#admin-content')).toBeVisible();
-
+    await adminPage.goto();
+    await expect(adminPage.adminContent).toBeVisible();
 
     // Add a product to edit
-    const originalName = `Edit Test Product ${Date.now()}`;
+    const originalProduct = createTestProduct();
+    await adminPage.addProduct(originalProduct.name, originalProduct.price);
+    await expect(adminPage.productList).toContainText(originalProduct.name);
 
-    await page.fill('#product-name', originalName);
-    await page.fill('#product-price', '15.00');
-
-    const addResponsePromise = page.waitForResponse(resp =>
-        resp.url().includes('/api/admin/products') &&
-        resp.request().method() === 'POST'
-    );
-
-    await page.click('#add-product-form button[type="submit"]');
-
-    await addResponsePromise;
-
-    await expect(page.locator('#admin-product-list'))
-        .toContainText(originalName);
-
-
-    // Find the product we just created
-    const productRow = page.locator('.product', {
-        hasText: originalName
-    });
-
-
-    // Click Edit on that product
-    await productRow.locator('button:has-text("Edit")').click();
-
-
-    // Update the product
-    const updatedName = `Renamed Product ${Date.now()}`;
-
-    await page.fill(
-        `input[id^="edit-name-"]`,
-        updatedName
-    );
-
-    await page.fill(
-        `input[id^="edit-price-"]`,
-        '19.99'
-    );
-
-
-    // Wait for update request
-    const updateResponsePromise = page.waitForResponse(resp =>
-        resp.url().includes('/api/admin/products/') &&
-        resp.request().method() === 'PUT'
-    );
-
-    await page.click('button:has-text("Save")');
-
-    await updateResponsePromise;
-
+    // Edit the product
+    const updatedProduct = createTestProduct();
+    await adminPage.editProduct(originalProduct.name, updatedProduct.name, 19.99);
 
     // Check that the update was successful
-    await expect(page.locator('#toast'))
-        .toHaveText('Product updated successfully.');
-
-    await expect(page.locator('#admin-product-list'))
-        .toContainText(updatedName);
-
-    await expect(page.locator('#admin-product-list'))
-        .toContainText('$19.99');
-
-    await expect(page.locator('#admin-product-list'))
-        .not.toContainText(originalName);
-
+    await expect(adminPage.toast).toHaveText('Product updated successfully.');
+    await expect(adminPage.productList).toContainText(updatedProduct.name);
+    await expect(adminPage.productList).toContainText('$19.99');
+    await expect(adminPage.productList).not.toContainText(originalProduct.name);
 
     // ------------------------------------------------
     // CLEAN UP TEST PRODUCT
     // ------------------------------------------------
-
-    // Find the updated product
-    const updatedProductRow = page.locator('.product', {
-        hasText: updatedName
-    });
-
-    // Accept the browser confirmation dialog
-    page.once('dialog', async (dialog) => {
-        await dialog.accept();
-    });
-
-    // Click Delete only inside the updated product's row
-    await updatedProductRow
-        .locator('button:has-text("Delete")')
-        .click();
-
-    // Make sure the test product was actually removed
-    await expect(page.locator('#admin-product-list'))
-        .not.toContainText(updatedName);
+    await adminPage.deleteProduct(updatedProduct.name);
+    await expect(adminPage.productList).not.toContainText(updatedProduct.name);
 });

@@ -51,6 +51,24 @@ class AdminPage {
             .locator('button:has-text("Delete")')
             .click();
     }
+
+
+    async editProduct(productName, newName, newPrice) {
+        await this.getProduct(productName)
+            .locator('button:has-text("Edit")')
+            .click();
+
+        await this.page.fill('input[id^="edit-name-"]', newName);
+        await this.page.fill('input[id^="edit-price-"]', String(newPrice));
+
+        const updateResponsePromise = this.page.waitForResponse(resp =>
+            resp.url().includes('/api/admin/products/') &&
+            resp.request().method() === 'PUT'
+        );
+
+        await this.page.click('button:has-text("Save")');
+        await updateResponsePromise;
+    }
 }
 
 
