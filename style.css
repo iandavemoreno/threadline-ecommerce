@@ -234,6 +234,23 @@ button:disabled:hover {
     background-color: #555;
 }
 
+#category-filter {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+}
+
+.product-category {
+    display: inline-block;
+    font-size: 12px;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+}
+
 .no-products-message {
     display: none;
     color: #c0392b;

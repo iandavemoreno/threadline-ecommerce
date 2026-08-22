@@ -69,9 +69,11 @@ function requireAdmin(req, res, next) {
     next();
 }
 
-// Products created without a stock value (e.g. older API callers/tests that
-// predate stock tracking) default to this rather than being rejected.
+// Products created without a stock/category value (e.g. older API
+// callers/tests that predate these fields) default to these rather than
+// being rejected.
 const DEFAULT_STOCK = 10;
+const DEFAULT_CATEGORY = 'Uncategorized';
 
 function parseStock(stock) {
     if (stock === undefined || stock === null || stock === '') {
@@ -85,6 +87,14 @@ function parseStock(stock) {
     }
 
     return stockNumber;
+}
+
+function parseCategory(category) {
+    if (category === undefined || category === null || String(category).trim() === '') {
+        return null;
+    }
+
+    return String(category).trim();
 }
 
 app.post('/api/admin/products', requireAdmin, (req, res) => {
@@ -104,15 +114,23 @@ app.post('/api/admin/products', requireAdmin, (req, res) => {
         stockNumber = DEFAULT_STOCK;
     }
 
+    const categoryValue = parseCategory(req.body.category) || DEFAULT_CATEGORY;
+
     const existing = db.prepare('SELECT id FROM products WHERE name = ?').get(name);
     if (existing) {
         return res.status(409).json({error: 'A product with that name already exists.'});
     }
 
-    const insert = db.prepare('INSERT INTO products (name, price, stock) VALUES (?, ?, ?)');
-    const result = insert.run(name, price, stockNumber);
+    const insert = db.prepare('INSERT INTO products (name, price, stock, category) VALUES (?, ?, ?, ?)');
+    const result = insert.run(name, price, stockNumber, categoryValue);
 
-    res.status(201).json({ id: result.lastInsertRowid, name: name, price: price, stock: stockNumber });
+    res.status(201).json({
+        id: result.lastInsertRowid,
+        name: name,
+        price: price,
+        stock: stockNumber,
+        category: categoryValue
+    });
 });
 
 app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
@@ -123,7 +141,7 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Name and price are required.' });
     }
 
-    const existingProduct = db.prepare('SELECT stock FROM products WHERE id = ?').get(id);
+    const existingProduct = db.prepare('SELECT stock, category FROM products WHERE id = ?').get(id);
 
     if (!existingProduct) {
         return res.status(404).json({ error: 'Product not found'});
@@ -135,21 +153,23 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Stock must be a whole number of 0 or more.' });
     }
 
-    // Stock left unspecified on an edit keeps whatever it already was,
-    // rather than silently resetting it.
+    // Stock/category left unspecified on an edit keep whatever they already
+    // were, rather than silently resetting them.
     if (stockNumber === null) {
         stockNumber = existingProduct.stock;
     }
+
+    const categoryValue = parseCategory(req.body.category) || existingProduct.category;
 
     const existingNameClash = db.prepare('SELECT id FROM products WHERE name = ? AND id != ?').get(name, id);
     if (existingNameClash) {
         return res.status(409).json({ error: 'A product with that name already exists.'});
     }
 
-    const update = db.prepare('UPDATE products SET name = ?, price = ?, stock = ? WHERE id = ?');
-    update.run(name, price, stockNumber, id);
+    const update = db.prepare('UPDATE products SET name = ?, price = ?, stock = ?, category = ? WHERE id = ?');
+    update.run(name, price, stockNumber, categoryValue, id);
 
-    res.json({ id, name, price, stock: stockNumber });
+    res.json({ id, name, price, stock: stockNumber, category: categoryValue });
 });
 
 app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {

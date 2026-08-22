@@ -26,6 +26,7 @@ function loadProducts() {
     const searchInput = document.getElementById('product-search');
     const searchBtn = document.getElementById('search-btn');
     const clearBtn = document.getElementById('clear-search-btn');
+    const categoryFilter = document.getElementById('category-filter');
     const noProductsMessage = document.getElementById('no-products-message');
 
     let allProducts = [];
@@ -37,6 +38,64 @@ function loadProducts() {
         .then(function (products) {
 
             allProducts = products;
+
+            // Populate the category filter from whatever categories
+            // actually exist in the catalog, rather than a hardcoded list -
+            // new categories created through the admin panel just show up.
+            // loadProducts() re-runs after every addToCart (for the live
+            // stock countdown), so this rebuilds the option list from
+            // scratch each time rather than appending onto itself, and
+            // restores whatever was previously selected so the filter
+            // doesn't silently reset on every add-to-cart click.
+            if (categoryFilter) {
+
+                const previousSelection = categoryFilter.value;
+
+                categoryFilter.innerHTML = '<option value="">All Categories</option>';
+
+                const categories = Array.from(
+                    new Set(allProducts.map(function (product) {
+                        return product.category;
+                    }))
+                ).sort();
+
+                categories.forEach(function (category) {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categoryFilter.appendChild(option);
+                });
+
+                if (categories.indexOf(previousSelection) !== -1) {
+                    categoryFilter.value = previousSelection;
+                }
+            }
+
+            // Search and category filter combine - e.g. searching "Black"
+            // within the "T-Shirts" category only matches products that
+            // satisfy both at once.
+            function applyFilters() {
+
+                const searchTerm = (searchInput ? searchInput.value : '')
+                    .trim()
+                    .toLowerCase();
+
+                const selectedCategory = categoryFilter ? categoryFilter.value : '';
+
+                const filtered = allProducts.filter(function (product) {
+
+                    const matchesSearch = product.name
+                        .toLowerCase()
+                        .includes(searchTerm);
+
+                    const matchesCategory =
+                        !selectedCategory || product.category === selectedCategory;
+
+                    return matchesSearch && matchesCategory;
+                });
+
+                displayProducts(filtered);
+            }
 
             function displayProducts(productsToDisplay) {
 
@@ -55,6 +114,8 @@ function loadProducts() {
                     html += '<div class="product">';
 
                     html += '<h3>' + product.name + '</h3>';
+
+                    html += '<p class="product-category">' + product.category + '</p>';
 
                     html += '<p class="product-price">$' + product.price.toFixed(2) + '</p>';
 
@@ -95,26 +156,13 @@ function loadProducts() {
 
 
             // Display all products when the page loads
-            displayProducts(allProducts);
+            applyFilters();
 
 
             // Search button
             if (searchBtn) {
                 searchBtn.addEventListener('click', function () {
-
-                    const searchTerm = searchInput.value
-                        .trim()
-                        .toLowerCase();
-
-                    const filteredProducts = allProducts.filter(function (product) {
-
-                        return product.name
-                            .toLowerCase()
-                            .includes(searchTerm);
-
-                    });
-
-                    displayProducts(filteredProducts);
+                    applyFilters();
                 });
             }
 
@@ -131,15 +179,24 @@ function loadProducts() {
             }
 
 
-            // Clear search
+            // Clear search text only - the category filter (if any) stays
+            // applied, matching what "Clear" is labeled next to.
             if (clearBtn) {
                 clearBtn.addEventListener('click', function () {
 
                     searchInput.value = '';
 
-                    displayProducts(allProducts);
+                    applyFilters();
 
                     searchInput.focus();
+                });
+            }
+
+
+            // Category filter
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', function () {
+                    applyFilters();
                 });
             }
 
@@ -471,6 +528,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
     const name = document.getElementById('product-name').value;
     const price = parseFloat(document.getElementById('product-price').value);
     const stock = parseInt(document.getElementById('product-stock').value, 10);
+    const category = document.getElementById('product-category').value.trim();
     const errorEl = document.getElementById('add-product-error');
     errorEl.textContent = '';
 
@@ -485,7 +543,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
         'Content-Type': 'application/json',
         'X-User-Email': loggedInUser.email
       },
-      body: JSON.stringify({ name: name, price: price, stock: stock})
+      body: JSON.stringify({ name: name, price: price, stock: stock, category: category})
     })
     .then(function (response){
       return response.json().then(function (data) {
@@ -497,6 +555,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
         document.getElementById('product-name').value = '';
         document.getElementById('product-price').value = '';
         document.getElementById('product-stock').value = '';
+        document.getElementById('product-category').value = '';
         errorEl.textContent = '';
         showToast('Product added successfully.');
         loadAdminProducts();
@@ -534,8 +593,8 @@ function loadAdminProducts() {
       html += '<div class="product" id="product-row-' + product.id + '">';
       html += '<div class="product-view">';
       html += '<h3>' + product.name + '</h3>';
-      html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ') - Stock: ' + product.stock + '</p>';
-      html += '<button type="button" onclick="editAdminProduct(' + product.id + ', \'' + product.name.replace(/'/g, "\\'") + '\', ' + product.price + ', ' + product.stock + ')">Edit</button>';
+      html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ') - Stock: ' + product.stock + ' - Category: ' + product.category + '</p>';
+      html += '<button type="button" onclick="editAdminProduct(' + product.id + ', \'' + product.name.replace(/'/g, "\\'") + '\', ' + product.price + ', ' + product.stock + ', \'' + product.category.replace(/'/g, "\\'") + '\')">Edit</button>';
       html += '<button type="button" onclick="deleteAdminProduct(' + product.id + ')">Delete</button>';
       html += '</div>';
       html += '</div>';
@@ -544,7 +603,7 @@ function loadAdminProducts() {
   });
 }
 
-function editAdminProduct(id, currentName, currentPrice, currentStock) {
+function editAdminProduct(id, currentName, currentPrice, currentStock, currentCategory) {
   const rowEl = document.getElementById('product-row-' + id);
   rowEl.innerHTML =
     '<div class="form-group">' +
@@ -559,6 +618,10 @@ function editAdminProduct(id, currentName, currentPrice, currentStock) {
       '<label>Stock</label>' +
       '<input type="text" id="edit-stock-' + id + '" value="' + currentStock + '">' +
     '</div>' +
+    '<div class="form-group">' +
+      '<label>Category</label>' +
+      '<input type="text" id="edit-category-' + id + '" value="' + currentCategory.replace(/"/g, '&quot;') + '">' +
+    '</div>' +
     '<p class="error" id="edit-error-' + id + '"></p>' +
     '<button type="button" onclick="saveAdminProduct(' + id + ')">Save</button>' +
     '<button type="button" onclick="loadAdminProducts()">Cancel</button>';
@@ -569,6 +632,7 @@ function saveAdminProduct(id) {
   const name = document.getElementById('edit-name-' + id).value;
   const price = parseFloat(document.getElementById('edit-price-' + id).value);
   const stock = parseInt(document.getElementById('edit-stock-' + id).value, 10);
+  const category = document.getElementById('edit-category-' + id).value.trim();
   const errorEl = document.getElementById('edit-error-' + id);
   errorEl.textContent = '';
 
@@ -583,7 +647,7 @@ function saveAdminProduct(id) {
       'Content-Type': 'application/json',
       'X-User-Email': loggedInUser.email
     },
-    body: JSON.stringify({ name: name, price: price, stock: stock })
+    body: JSON.stringify({ name: name, price: price, stock: stock, category: category })
   })
   .then(function (response) {
     return response.json().then(function (data) {

@@ -31,6 +31,15 @@ if (!hasStockColumn) {
     db.exec('ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 10');
 }
 
+// Migration: add the category column for databases created before category
+// tracking existed. DEFAULT 'Uncategorized' keeps existing products visible
+// under the category filter instead of silently disappearing from it.
+const hasCategoryColumn = productColumns.some((col) => col.name === 'category');
+
+if (!hasCategoryColumn) {
+    db.exec("ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT 'Uncategorized'");
+}
+
 
 // ========================================
 // USERS TABLE
@@ -90,12 +99,12 @@ const count = db
 if (count.total === 0) {
 
     const insert = db.prepare(
-        'INSERT INTO products (name, price, stock) VALUES (?, ?, ?)'
+        'INSERT INTO products (name, price, stock, category) VALUES (?, ?, ?, ?)'
     );
 
-    insert.run('Classic White Tee', 20.00, 15);
-    insert.run('Black Crew Neck', 25.00, 15);
-    insert.run('Navy Striped Tee', 22.00, 15);
+    insert.run('Classic White Tee', 20.00, 15, 'T-Shirts');
+    insert.run('Black Crew Neck', 25.00, 15, 'T-Shirts');
+    insert.run('Navy Striped Tee', 22.00, 15, 'T-Shirts');
 }
 
 
