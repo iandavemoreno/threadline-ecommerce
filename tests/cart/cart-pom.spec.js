@@ -32,9 +32,15 @@ test.describe('Cart - Page Object Model', () => {
             .not.toBeEmpty();
 
 
-        // Get the first product
+        // Get the first product that's actually in stock - "the first
+        // product" isn't a stable target on its own now that stock exists,
+        // since whichever product happens to be first in the catalog could
+        // be sold out by other tests/usage without this test caring which
+        // specific product it uses.
         const firstProduct =
-            page.locator('.product').first();
+            page.locator('.product').filter({
+                has: page.locator('button:not([disabled])')
+            }).first();
 
 
         // Get product name
@@ -75,9 +81,15 @@ test.describe('Cart - Page Object Model', () => {
         await homePage.goto();
 
 
-        // Get the first product
+        // Get the first product that's actually in stock - "the first
+        // product" isn't a stable target on its own now that stock exists,
+        // since whichever product happens to be first in the catalog could
+        // be sold out by other tests/usage without this test caring which
+        // specific product it uses.
         const firstProduct =
-            page.locator('.product').first();
+            page.locator('.product').filter({
+                has: page.locator('button:not([disabled])')
+            }).first();
 
 
         // Get product name
@@ -165,14 +177,20 @@ test.describe('Cart - Page Object Model', () => {
         await homePage.goto();
 
 
-        // Get the first product
+        // Get the first product that's actually in stock - "the first
+        // product" isn't a stable target on its own now that stock exists,
+        // since whichever product happens to be first in the catalog could
+        // be sold out by other tests/usage without this test caring which
+        // specific product it uses.
         const firstProduct =
-            page.locator('.product').first();
+            page.locator('.product').filter({
+                has: page.locator('button:not([disabled])')
+            }).first();
 
 
         // Get product price
         const priceText =
-            await firstProduct.locator('p').textContent();
+            await firstProduct.locator('.product-price').textContent();
 
 
         const price =

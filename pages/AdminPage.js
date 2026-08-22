@@ -7,6 +7,7 @@ class AdminPage {
 
         this.productNameInput = page.locator('#product-name');
         this.productPriceInput = page.locator('#product-price');
+        this.productStockInput = page.locator('#product-stock');
         this.addProductForm = page.locator('#add-product-form');
         this.addProductButton =
             this.addProductForm.locator('button[type="submit"]');
@@ -28,9 +29,13 @@ class AdminPage {
     }
 
 
-    async addProduct(name, price) {
+    // stock defaults to 10 so existing callers that only ever cared about
+    // name/price (written before stock tracking existed) don't need to
+    // change - the add-product form now requires a stock value to submit.
+    async addProduct(name, price, stock = 10) {
         await this.productNameInput.fill(name);
         await this.productPriceInput.fill(String(price));
+        await this.productStockInput.fill(String(stock));
 
         const addResponsePromise = this.page.waitForResponse(resp =>
             resp.url().includes('/api/admin/products') &&

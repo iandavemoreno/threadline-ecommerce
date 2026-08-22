@@ -33,8 +33,14 @@ test('user can complete checkout after adding a product from the product list @s
 
     await homePage.goto();
 
-    await page.waitForSelector('#product-list button:has-text("Add to Cart")');
-    await page.click('#product-list button:has-text("Add to Cart")');
+    // Target a product that's actually in stock - the first one in the
+    // catalog could be sold out from other tests/usage.
+    const inStockAddToCart = page.locator(
+        '#product-list button:has-text("Add to Cart"):not([disabled])'
+    ).first();
+
+    await inStockAddToCart.waitFor();
+    await inStockAddToCart.click();
 
     await checkoutPage.goto();
 

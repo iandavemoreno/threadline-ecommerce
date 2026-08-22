@@ -31,6 +31,15 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 4,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
+  /* A few specs have shown WebKit occasionally taking longer than the 5s
+     default to redirect after login under 4-way parallel load (the backend's
+     bcrypt hashing is synchronous and blocks Node's single thread, so a
+     login request can genuinely queue up behind others). 10s gives that
+     headroom without hiding a real bug - a page that never redirects at all
+     will still fail either way. */
+  expect: {
+    timeout: 10000,
+  },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
