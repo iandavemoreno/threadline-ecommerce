@@ -56,7 +56,7 @@ function loadProducts() {
 
                     html += '<h3>' + product.name + '</h3>';
 
-                    html += '<p>$' + product.price.toFixed(2) + '</p>';
+                    html += '<p class="product-price">$' + product.price.toFixed(2) + '</p>';
 
                     // How many of this product are already sitting in the
                     // cart - "remaining" is what's left to add, and it
@@ -332,7 +332,7 @@ if (checkoutForm) {
         localStorage.removeItem('cart');
         updateCartCount();
         checkoutForm.style.display = 'none';
-        document.getElementById('order-confirmation').innerHTML = '<p> Thank you, ' + name + '! Your oreder has been placed. </p>';
+        document.getElementById('order-confirmation').innerHTML = '<p> Thank you, ' + name + '! Your order has been placed. </p>';
       } else {
         document.getElementById('order-confirmation').innerHTML =
           '<p class="error">' + (result.data.error || 'Something went wrong placing your order.') + '</p>';

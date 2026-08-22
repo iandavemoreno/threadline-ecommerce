@@ -244,7 +244,7 @@ test.describe('Checkout - Page Object Model', () => {
         await expect(
             checkoutPage.orderConfirmation
         ).toContainText(
-            'Your oreder has been placed.'
+            'Your order has been placed.'
         );
 
         await expect(
