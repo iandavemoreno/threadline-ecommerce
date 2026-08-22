@@ -8,6 +8,7 @@ class HomePage {
         this.searchInput = page.locator('#product-search');
         this.searchButton = page.locator('#search-btn');
         this.clearSearchButton = page.locator('#clear-search-btn');
+        this.categoryFilter = page.locator('#category-filter');
 
         this.noProductsMessage =
             page.locator('#no-products-message');
@@ -33,6 +34,23 @@ class HomePage {
 
     async clearSearch() {
         await this.clearSearchButton.click();
+    }
+
+
+    async filterByCategory(category) {
+        await this.categoryFilter.selectOption(category);
+    }
+
+
+    async resetCategoryFilter() {
+        await this.categoryFilter.selectOption('');
+    }
+
+
+    getProduct(productName) {
+        return this.productList.locator('.product', {
+            hasText: productName
+        });
     }
 }
 

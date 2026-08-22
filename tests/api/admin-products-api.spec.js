@@ -174,4 +174,72 @@ test.describe('Admin Products API', () => {
         const body = await response.json();
         expect(body.error).toBe('Not logged in.');
     });
+
+    test('create product defaults to Uncategorized when no category is given', async ({ request }) => {
+        const product = createTestProduct();
+
+        const response = await request.post(`${API_BASE_URL}/api/admin/products`, {
+            headers: { 'X-User-Email': ADMIN_EMAIL },
+            data: product
+        });
+
+        expect(response.status()).toBe(201);
+
+        const body = await response.json();
+        expect(body.category).toBe('Uncategorized');
+
+        // Clean up
+        await request.delete(`${API_BASE_URL}/api/admin/products/${body.id}`, {
+            headers: { 'X-User-Email': ADMIN_EMAIL }
+        });
+    });
+
+    test('create product accepts a custom category', async ({ request }) => {
+        const product = createTestProduct();
+        product.category = 'Accessories';
+
+        const response = await request.post(`${API_BASE_URL}/api/admin/products`, {
+            headers: { 'X-User-Email': ADMIN_EMAIL },
+            data: product
+        });
+
+        expect(response.status()).toBe(201);
+
+        const body = await response.json();
+        expect(body.category).toBe('Accessories');
+
+        // Clean up
+        await request.delete(`${API_BASE_URL}/api/admin/products/${body.id}`, {
+            headers: { 'X-User-Email': ADMIN_EMAIL }
+        });
+    });
+
+    test('update product keeps its existing category when not specified', async ({ request }) => {
+        const product = createTestProduct();
+        product.category = 'Outerwear';
+
+        const created = await request.post(`${API_BASE_URL}/api/admin/products`, {
+            headers: { 'X-User-Email': ADMIN_EMAIL },
+            data: product
+        });
+        const createdBody = await created.json();
+
+        const response = await request.put(
+            `${API_BASE_URL}/api/admin/products/${createdBody.id}`,
+            {
+                headers: { 'X-User-Email': ADMIN_EMAIL },
+                data: { name: `${product.name} Updated`, price: 30.5 }
+            }
+        );
+
+        expect(response.status()).toBe(200);
+
+        const body = await response.json();
+        expect(body.category).toBe('Outerwear');
+
+        // Clean up
+        await request.delete(`${API_BASE_URL}/api/admin/products/${createdBody.id}`, {
+            headers: { 'X-User-Email': ADMIN_EMAIL }
+        });
+    });
 });

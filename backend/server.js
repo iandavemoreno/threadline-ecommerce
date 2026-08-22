@@ -30,11 +30,22 @@ app.post('/api/signup', (req, res) =>{
         return res.status(409).json({ error: 'An account with that email already exists.' });
     }
 
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const insert = db.prepare('INSERT INTO users (email, password, role) VALUES (?, ?, ?)');
-    insert.run(email, hashedPassword, 'user');
-    
-    res.status(201).json({ message: 'Account created successfully.' });
+    // bcrypt.hash (async) instead of hashSync: hashSync blocks Node's single
+    // JS thread for the entire ~50-100ms cost of hashing, so several
+    // signups/logins arriving close together (e.g. Playwright's parallel
+    // workers) queue up back to back and can push later requests past their
+    // timeout. The async form chunks the same work via setImmediate so other
+    // pending requests get a chance to finish in between.
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+        if (err) {
+            return res.status(500).json({ error: 'Something went wrong creating your account.' });
+        }
+
+        const insert = db.prepare('INSERT INTO users (email, password, role) VALUES (?, ?, ?)');
+        insert.run(email, hashedPassword, 'user');
+
+        res.status(201).json({ message: 'Account created successfully.' });
+    });
 })
 
 app.post('/api/login', (req, res) => {
@@ -45,12 +56,17 @@ app.post('/api/login', (req, res) => {
         return res.status(401).json({ error: 'Invalid email or password.'});
     }
 
-    const passwordMatches = bcrypt.compareSync(password, user.password);
-    if (!passwordMatches) {
-        return res.status(401).json({ error: 'Invalid email or password.' });
-    }
+    bcrypt.compare(password, user.password, (err, passwordMatches) => {
+        if (err) {
+            return res.status(500).json({ error: 'Something went wrong logging you in.' });
+        }
 
-    res.json({ message: 'Login successful.', email: user.email, role: user.role });
+        if (!passwordMatches) {
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
+
+        res.json({ message: 'Login successful.', email: user.email, role: user.role });
+    });
 });
 
 function requireAdmin(req, res, next) {
