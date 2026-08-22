@@ -5,6 +5,10 @@ class CheckoutPage {
     constructor(page) {
         this.page = page;
 
+        // Access gate (checkout requires being logged in)
+        this.accessMessage = page.locator('#checkout-access-message');
+        this.checkoutContent = page.locator('#checkout-content');
+
         // Checkout form
         this.checkoutForm = page.locator('#checkout-form');
 
@@ -37,29 +41,32 @@ class CheckoutPage {
     }
 
 
-    async addTestProductToCart() {
+    // productId must be a real product id from the database - checkout now
+    // posts to the orders API, which looks products up by id.
+    async addTestProductToCart(productId, name = 'Automation Test Shirt', price = 19.99) {
 
-        await this.page.evaluate(() => {
+        await this.page.evaluate(({ productId, name, price }) => {
 
             localStorage.setItem(
                 'cart',
                 JSON.stringify([
                     {
-                        name: 'Automation Test Shirt',
-                        price: 19.99
+                        productId: productId,
+                        name: name,
+                        price: price
                     }
                 ])
             );
 
-        });
+        }, { productId, name, price });
     }
 
 
-    async fillCustomerInformation(name, email, address) {
+    // The email field is locked to the logged-in account since checkout now
+    // requires being logged in, so only name/address are user-fillable.
+    async fillCustomerInformation(name, address) {
 
         await this.nameInput.fill(name);
-
-        await this.emailInput.fill(email);
 
         await this.addressInput.fill(address);
     }

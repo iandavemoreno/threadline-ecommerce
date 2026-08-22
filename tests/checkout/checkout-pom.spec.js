@@ -1,14 +1,34 @@
 const { test, expect } = require('@playwright/test');
 
 const CheckoutPage = require('../../pages/CheckoutPage');
+const LoginPage = require('../../pages/LoginPage');
+
+const { ADMIN_EMAIL } = require('../helpers/config');
+const { createUniqueEmail, createTestProduct } = require('../helpers/test-data');
+const { signupUser, createProduct, deleteProduct } = require('../helpers/api-helpers');
 
 
 test.describe('Checkout - Page Object Model', () => {
 
+    let testProduct;
 
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page, request }) => {
 
-        await page.goto('/index.html');
+        // Checkout now requires being logged in (the account is what "My
+        // Orders" later looks orders up by), and the order it places needs a
+        // real product id. A fresh account and a fresh product per test keep
+        // these tests independent of each other and of the shared admin
+        // account's own order history.
+        const email = createUniqueEmail('checkoutpom');
+        const password = 'Password123!';
+
+        await signupUser(request, email, password);
+        testProduct = await createProduct(request, ADMIN_EMAIL, createTestProduct());
+
+        const loginPage = new LoginPage(page);
+        await loginPage.goto();
+        await loginPage.login(email, password);
+        await expect(page).toHaveURL(/index\.html/);
 
         // Start every test with an empty cart
         await page.evaluate(() => {
@@ -17,7 +37,12 @@ test.describe('Checkout - Page Object Model', () => {
     });
 
 
-    test('checkout page loads successfully', async ({ page }) => {
+    test.afterEach(async ({ request }) => {
+        await deleteProduct(request, ADMIN_EMAIL, testProduct.id);
+    });
+
+
+    test('checkout page loads successfully with the account email locked in', async ({ page }) => {
 
         const checkoutPage = new CheckoutPage(page);
 
@@ -32,16 +57,37 @@ test.describe('Checkout - Page Object Model', () => {
         ).toBeVisible();
 
         await expect(
-            checkoutPage.emailInput
-        ).toBeVisible();
-
-        await expect(
             checkoutPage.addressInput
         ).toBeVisible();
 
         await expect(
             checkoutPage.placeOrderButton
         ).toBeVisible();
+
+        // Email is prefilled from the logged-in account and locked
+        await expect(
+            checkoutPage.emailInput
+        ).toHaveAttribute('readonly', '');
+    });
+
+
+    test('checkout is blocked when not logged in', async ({ page }) => {
+
+        await page.evaluate(() => {
+            localStorage.removeItem('loggedInUser');
+        });
+
+        const checkoutPage = new CheckoutPage(page);
+
+        await checkoutPage.goto();
+
+        await expect(
+            checkoutPage.accessMessage
+        ).toHaveText('You must be logged in to check out.');
+
+        await expect(
+            checkoutPage.checkoutContent
+        ).toBeHidden();
     });
 
 
@@ -53,7 +99,6 @@ test.describe('Checkout - Page Object Model', () => {
 
         await checkoutPage.fillCustomerInformation(
             'John Doe',
-            'john@example.com',
             '123 Main Street'
         );
 
@@ -78,14 +123,13 @@ test.describe('Checkout - Page Object Model', () => {
         await checkoutPage.goto();
 
         // Checkout validation requires a product in the cart
-        await checkoutPage.addTestProductToCart();
+        await checkoutPage.addTestProductToCart(testProduct.id, testProduct.name, testProduct.price);
 
         // Reload so the page starts with the test cart
         await checkoutPage.goto();
 
         await checkoutPage.fillCustomerInformation(
             '',
-            'john@example.com',
             '123 Main Street'
         );
 
@@ -104,13 +148,12 @@ test.describe('Checkout - Page Object Model', () => {
         await checkoutPage.goto();
 
         // Add product so checkout validation can run
-        await checkoutPage.addTestProductToCart();
+        await checkoutPage.addTestProductToCart(testProduct.id, testProduct.name, testProduct.price);
 
         await checkoutPage.goto();
 
         await checkoutPage.fillCustomerInformation(
             'John Doe',
-            'john@example.com',
             ''
         );
 
@@ -122,31 +165,6 @@ test.describe('Checkout - Page Object Model', () => {
     });
 
 
-    test('invalid email validation is displayed', async ({ page }) => {
-
-        const checkoutPage = new CheckoutPage(page);
-
-        await checkoutPage.goto();
-
-        // Add product so checkout validation can run
-        await checkoutPage.addTestProductToCart();
-
-        await checkoutPage.goto();
-
-        await checkoutPage.fillCustomerInformation(
-            'John Doe',
-            'invalid-email',
-            '123 Main Street'
-        );
-
-        await checkoutPage.placeOrder();
-
-        await expect(
-            checkoutPage.emailError
-        ).toHaveText('Enter a valid email.');
-    });
-
-
     test('multiple validation errors are displayed', async ({ page }) => {
 
         const checkoutPage = new CheckoutPage(page);
@@ -154,13 +172,12 @@ test.describe('Checkout - Page Object Model', () => {
         await checkoutPage.goto();
 
         // Add product so checkout validation can run
-        await checkoutPage.addTestProductToCart();
+        await checkoutPage.addTestProductToCart(testProduct.id, testProduct.name, testProduct.price);
 
         await checkoutPage.goto();
 
         await checkoutPage.fillCustomerInformation(
             '',
-            'invalid-email',
             ''
         );
 
@@ -169,10 +186,6 @@ test.describe('Checkout - Page Object Model', () => {
         await expect(
             checkoutPage.nameError
         ).toHaveText('Name is required.');
-
-        await expect(
-            checkoutPage.emailError
-        ).toHaveText('Enter a valid email.');
 
         await expect(
             checkoutPage.addressError
@@ -186,23 +199,18 @@ test.describe('Checkout - Page Object Model', () => {
 
         await checkoutPage.goto();
 
-        await checkoutPage.addTestProductToCart();
+        await checkoutPage.addTestProductToCart(testProduct.id, testProduct.name, testProduct.price);
 
         await checkoutPage.goto();
 
         await checkoutPage.fillCustomerInformation(
             'John Doe',
-            'john@example.com',
             '123 Main Street'
         );
 
         await expect(
             checkoutPage.nameInput
         ).toHaveValue('John Doe');
-
-        await expect(
-            checkoutPage.emailInput
-        ).toHaveValue('john@example.com');
 
         await expect(
             checkoutPage.addressInput
@@ -216,13 +224,12 @@ test.describe('Checkout - Page Object Model', () => {
 
         await checkoutPage.goto();
 
-        await checkoutPage.addTestProductToCart();
+        await checkoutPage.addTestProductToCart(testProduct.id, testProduct.name, testProduct.price);
 
         await checkoutPage.goto();
 
         await checkoutPage.fillCustomerInformation(
             'John Doe',
-            'john@example.com',
             '123 Main Street'
         );
 
@@ -258,13 +265,12 @@ test.describe('Checkout - Page Object Model', () => {
 
         await checkoutPage.goto();
 
-        await checkoutPage.addTestProductToCart();
+        await checkoutPage.addTestProductToCart(testProduct.id, testProduct.name, testProduct.price);
 
         await checkoutPage.goto();
 
         await checkoutPage.fillCustomerInformation(
             'Jane Doe',
-            'jane@example.com',
             '456 Test Street'
         );
 
