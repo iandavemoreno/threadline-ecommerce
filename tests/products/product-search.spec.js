@@ -1,292 +1,80 @@
 const { test, expect } = require('@playwright/test');
-const { createTestProduct } = require('../helpers/test-data');
+
+const LoginPage = require('../../pages/LoginPage');
+const HomePage = require('../../pages/HomePage');
+const AdminPage = require('../../pages/AdminPage');
+
 const { ADMIN_EMAIL, ADMIN_PASSWORD } = require('../helpers/config');
+const { createTestProduct } = require('../helpers/test-data');
+
+// Note: partial-name search, the no-match message, and clear-search are
+// already covered by product-search-pom.spec.js, so they aren't repeated
+// here. This file keeps only the cases that file doesn't cover: searching
+// for a product created dynamically through the admin panel (not just the
+// seeded defaults), case-insensitivity, and searching via the Enter key.
 
 test.describe('Product Search', () => {
 
-    test('user can search for an existing product', async ({ page }) => {
+    test('user can search for a newly created product', async ({ page }) => {
 
-        // ------------------------------------------------
-        // LOGIN AS ADMIN
-        // ------------------------------------------------
+        const loginPage = new LoginPage(page);
+        const homePage = new HomePage(page);
+        const adminPage = new AdminPage(page);
 
-        await page.goto('/login.html');
+        // Log in as admin
+        await loginPage.goto();
+        await loginPage.login(ADMIN_EMAIL, ADMIN_PASSWORD);
+        await expect(page).toHaveURL(/index\.html/);
 
-        await page.fill(
-            '#login-email',
-            ADMIN_EMAIL
-        );
-
-        await page.fill(
-            '#login-password',
-            ADMIN_PASSWORD
-        );
-
-        await page.click('button[type="submit"]');
-
-        await expect(page).toHaveURL(/index.html/);
-
-
-        // ------------------------------------------------
-        // CREATE TEST PRODUCT
-        // ------------------------------------------------
-
+        // Create a test product via the admin panel
         const testProduct = createTestProduct();
 
-        await page.goto('/admin.html');
+        await adminPage.goto();
+        await expect(adminPage.adminContent).toBeVisible();
+        await adminPage.addProduct(testProduct.name, testProduct.price);
+        await expect(adminPage.productList).toContainText(testProduct.name);
 
-        await expect(
-            page.locator('#admin-content')
-        ).toBeVisible();
+        // Go to the user side and search for it
+        await homePage.goto();
+        await expect(homePage.productList).not.toBeEmpty();
 
-        await page.fill(
-            '#product-name',
-            testProduct.name
-        );
+        await homePage.searchProduct(testProduct.name);
 
-        await page.fill(
-            '#product-price',
-            testProduct.price.toString()
-        );
+        await expect(homePage.productList).toContainText(testProduct.name);
+        await expect(homePage.noProductsMessage).toBeHidden();
 
-        const addResponsePromise =
-            page.waitForResponse(resp =>
-                resp.url().includes('/api/admin/products') &&
-                resp.request().method() === 'POST'
-            );
-
-        await page.click(
-            '#add-product-form button[type="submit"]'
-        );
-
-        await addResponsePromise;
-
-        await expect(
-            page.locator('#admin-product-list')
-        ).toContainText(testProduct.name);
-
-
-        // ------------------------------------------------
-        // GO TO USER SIDE
-        // ------------------------------------------------
-
-        await page.goto('/index.html');
-
-        await expect(
-            page.locator('#product-list')
-        ).not.toBeEmpty();
-
-
-        // ------------------------------------------------
-        // SEARCH FOR TEST PRODUCT
-        // ------------------------------------------------
-
-        const searchInput =
-            page.locator('#product-search');
-
-        const searchButton =
-            page.locator('#search-btn');
-
-        await searchInput.fill(testProduct.name);
-
-        await searchButton.click();
-
-
-        // ------------------------------------------------
-        // VERIFY SEARCH RESULT
-        // ------------------------------------------------
-
-        await expect(
-            page.locator('#product-list')
-        ).toContainText(testProduct.name);
-
-        await expect(
-            page.locator('#no-products-message')
-        ).toBeHidden();
-
-
-        // ------------------------------------------------
-        // CLEAN UP
-        // ------------------------------------------------
-
-        await page.goto('/admin.html');
-
-        const productRow =
-            page.locator('.product', {
-                hasText: testProduct.name
-            });
-
-        page.once('dialog', async dialog => {
-            await dialog.accept();
-        });
-
-        await productRow
-            .locator('button:has-text("Delete")')
-            .click();
-
-        await expect(
-            page.locator('#admin-product-list')
-        ).not.toContainText(testProduct.name);
-    });
-
-
-    test('user can search using a partial product name', async ({ page }) => {
-
-        await page.goto('/index.html');
-
-        await expect(
-            page.locator('#product-list')
-        ).not.toBeEmpty();
-
-        const searchInput =
-            page.locator('#product-search');
-
-        const searchButton =
-            page.locator('#search-btn');
-
-        await searchInput.fill('Black');
-
-        await searchButton.click();
-
-        await expect(
-            page.locator('#product-list')
-        ).toContainText('Black');
-
-        await expect(
-            page.locator('#no-products-message')
-        ).toBeHidden();
+        // Clean up
+        await adminPage.goto();
+        await adminPage.deleteProduct(testProduct.name);
+        await expect(adminPage.productList).not.toContainText(testProduct.name);
     });
 
 
     test('search is case-insensitive', async ({ page }) => {
 
-        await page.goto('/index.html');
+        const homePage = new HomePage(page);
 
-        await expect(
-            page.locator('#product-list')
-        ).not.toBeEmpty();
+        await homePage.goto();
+        await expect(homePage.productList).not.toBeEmpty();
 
-        const searchInput =
-            page.locator('#product-search');
+        await homePage.searchProduct('BLACK');
 
-        const searchButton =
-            page.locator('#search-btn');
-
-        await searchInput.fill('BLACK');
-
-        await searchButton.click();
-
-        await expect(
-            page.locator('#product-list')
-        ).toContainText('Black');
-
-        await expect(
-            page.locator('#no-products-message')
-        ).toBeHidden();
-    });
-
-
-    test('user sees no products message when there are no matches', async ({ page }) => {
-
-        await page.goto('/index.html');
-
-        await expect(
-            page.locator('#product-list')
-        ).not.toBeEmpty();
-
-        const searchInput =
-            page.locator('#product-search');
-
-        const searchButton =
-            page.locator('#search-btn');
-
-        await searchInput.fill(
-            'ThisProductDoesNotExist'
-        );
-
-        await searchButton.click();
-
-        await expect(
-            page.locator('#product-list')
-        ).toBeEmpty();
-
-        await expect(
-            page.locator('#no-products-message')
-        ).toBeVisible();
-
-        await expect(
-            page.locator('#no-products-message')
-        ).toHaveText('No products found.');
-    });
-
-
-    test('user can clear the search', async ({ page }) => {
-
-        await page.goto('/index.html');
-
-        await expect(
-            page.locator('#product-list')
-        ).not.toBeEmpty();
-
-        const searchInput =
-            page.locator('#product-search');
-
-        const searchButton =
-            page.locator('#search-btn');
-
-        const clearButton =
-            page.locator('#clear-search-btn');
-
-
-        // Search
-        await searchInput.fill('Black');
-
-        await searchButton.click();
-
-        await expect(
-            page.locator('#product-list')
-        ).toContainText('Black');
-
-
-        // Clear search
-        await clearButton.click();
-
-        await expect(
-            searchInput
-        ).toHaveValue('');
-
-        await expect(
-            page.locator('#product-list')
-        ).not.toBeEmpty();
-
-        await expect(
-            page.locator('#no-products-message')
-        ).toBeHidden();
+        await expect(homePage.productList).toContainText('Black');
+        await expect(homePage.noProductsMessage).toBeHidden();
     });
 
 
     test('user can search by pressing Enter', async ({ page }) => {
 
-        await page.goto('/index.html');
+        const homePage = new HomePage(page);
 
-        await expect(
-            page.locator('#product-list')
-        ).not.toBeEmpty();
+        await homePage.goto();
+        await expect(homePage.productList).not.toBeEmpty();
 
-        const searchInput =
-            page.locator('#product-search');
+        await homePage.searchProductWithEnter('Black');
 
-        await searchInput.fill('Black');
-
-        await searchInput.press('Enter');
-
-        await expect(
-            page.locator('#product-list')
-        ).toContainText('Black');
-
-        await expect(
-            page.locator('#no-products-message')
-        ).toBeHidden();
+        await expect(homePage.productList).toContainText('Black');
+        await expect(homePage.noProductsMessage).toBeHidden();
     });
 
 });
