@@ -35,16 +35,6 @@ jobs:
         if: failure()
         run: cat backend/backend.log
 
-      - name: Sign up test admin account
-        run: |
-          curl -X POST http://localhost:3000/api/signup \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admintest@example.com","password":"AdminTest123!"}'
-
-      - name: Promote test account to admin
-        working-directory: ./backend
-        run: node makeAdmin.js
-
       - name: Install frontend/test dependencies
         run: npm ci
 
@@ -58,6 +48,9 @@ jobs:
         run: npx wait-on http://127.0.0.1:5500 --timeout 30000
 
       - name: Run Playwright tests
+        # The admin test account (email/password from tests/helpers/config.js)
+        # is bootstrapped automatically by tests/global-setup.js before any
+        # test runs - no manual signup/promote step needed here anymore.
         run: npx playwright test
 
       - name: Upload test report
