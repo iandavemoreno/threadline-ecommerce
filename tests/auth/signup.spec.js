@@ -1,16 +1,15 @@
 const { test, expect } = require('@playwright/test');
+const SignupPage = require('../../pages/SignupPage');
+const { createUniqueEmail } = require('../helpers/test-data');
 
 test('user can sign up successfully', async ({ page }) => {
-    await page.goto('/signup.html');
+    const signupPage = new SignupPage(page);
 
     // Use a unique email each run so signup doesn't fail on duplicate
-    const uniqueEmail = `testuser${Date.now()}@example.com`;
+    const uniqueEmail = createUniqueEmail('testuser');
 
-    await page.fill('#signup-email', uniqueEmail);  // adjust selector match to your actual input id
-    await page.fill('#signup-password', 'Password123!'); // adjust selector to match your actual input id
-    await page.click('button[type="submit"]');
+    await signupPage.goto();
+    await signupPage.signup(uniqueEmail, 'Password123!');
 
-    // Adjust this assertion to match what actually happnens on success
-    // e.g redirect to login.html, or a success message appearing
     await expect(page).toHaveURL(/login\.html/);
 });

@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { API_BASE_URL, ADMIN_EMAIL } = require('../helpers/config');
-const { createTestProduct } = require('../helpers/test-data');
+const { createTestProduct, createUniqueEmail } = require('../helpers/test-data');
 
 test.describe('Admin Products API', () => {
 
@@ -75,7 +75,7 @@ test.describe('Admin Products API', () => {
     });
 
     test('create product fails for a non-admin user', async ({ request }) => {
-        const email = `apinonadmin${Date.now()}@example.com`;
+        const email = createUniqueEmail('apinonadmin');
 
         await request.post(`${API_BASE_URL}/api/signup`, {
             data: { email, password: 'Password123!' }

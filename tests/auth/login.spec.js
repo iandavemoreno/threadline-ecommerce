@@ -1,8 +1,14 @@
 const { test, expect } = require('@playwright/test');
+const LoginPage = require('../../pages/LoginPage');
+const SignupPage = require('../../pages/SignupPage');
+const { createUniqueEmail } = require('../helpers/test-data');
 
 test('user can log in successfully', async ({ page }) => {
-  const uniqueEmail = `testuser${Date.now()}@example.com`;
+  const uniqueEmail = createUniqueEmail('testuser');
   const password = 'Password123!';
+
+  const loginPage = new LoginPage(page);
+  const signupPage = new SignupPage(page);
 
   // Log browser console messages
   page.on('console', msg => {
@@ -19,23 +25,18 @@ test('user can log in successfully', async ({ page }) => {
   });
 
   // First, sign up a fresh account
-  await page.goto('/signup.html');
-  await page.fill('#signup-email', uniqueEmail);
-  await page.fill('#signup-password', password);
-  await page.click('button[type="submit"]');
+  await signupPage.goto();
+  await signupPage.signup(uniqueEmail, password);
 
   await expect(page).toHaveURL(/login\.html/);
 
   // Now log in with those same credentials
-  await page.fill('#login-email', uniqueEmail);
-  await page.fill('#login-password', password);
-
   const loginResponsePromise = page.waitForResponse(response =>
     response.url().includes('/api/login') &&
     response.request().method() === 'POST'
   );
 
-  await page.click('button[type="submit"]');
+  await loginPage.login(uniqueEmail, password);
 
   const loginResponse = await loginResponsePromise;
 

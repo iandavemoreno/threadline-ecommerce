@@ -23,7 +23,12 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Capped locally too: the default (roughly half your CPU cores) spins up
+     enough simultaneous Chromium/Firefox/WebKit instances to starve Firefox's
+     headless software renderer on this machine, causing intermittent
+     "RenderCompositorSWGL failed mapping default framebuffer" timeouts that
+     have nothing to do with the tests themselves. 4 is a safer ceiling. */
+  workers: process.env.CI ? 1 : 4,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

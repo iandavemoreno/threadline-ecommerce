@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { API_BASE_URL } = require('../helpers/config');
+const { createUniqueEmail } = require('../helpers/test-data');
 
 // Note: the successful-login case (200, correct credentials) is already
 // covered by webkit-login.spec.js, so it isn't repeated here.
@@ -7,7 +8,7 @@ const { API_BASE_URL } = require('../helpers/config');
 test.describe('Signup API', () => {
 
     test('signup succeeds with a new email', async ({ request }) => {
-        const email = `apitest${Date.now()}@example.com`;
+        const email = createUniqueEmail('apitest');
 
         const response = await request.post(`${API_BASE_URL}/api/signup`, {
             data: { email, password: 'Password123!' }
@@ -31,7 +32,7 @@ test.describe('Signup API', () => {
     });
 
     test('signup fails when email is already registered', async ({ request }) => {
-        const email = `apidupe${Date.now()}@example.com`;
+        const email = createUniqueEmail('apidupe');
         const password = 'Password123!';
 
         const first = await request.post(`${API_BASE_URL}/api/signup`, {
@@ -52,7 +53,7 @@ test.describe('Signup API', () => {
 test.describe('Login API', () => {
 
     test('login fails with a wrong password', async ({ request }) => {
-        const email = `apilogin${Date.now()}@example.com`;
+        const email = createUniqueEmail('apilogin');
         const password = 'Password123!';
 
         await request.post(`${API_BASE_URL}/api/signup`, {
@@ -72,7 +73,7 @@ test.describe('Login API', () => {
     test('login fails for an email that does not exist', async ({ request }) => {
         const response = await request.post(`${API_BASE_URL}/api/login`, {
             data: {
-                email: `doesnotexist${Date.now()}@example.com`,
+                email: createUniqueEmail('doesnotexist'),
                 password: 'Whatever123!'
             }
         });
