@@ -1,10 +1,11 @@
 const { test, expect } = require('@playwright/test');
+const { ADMIN_EMAIL, ADMIN_PASSWORD } = require('../helpers/config');
 
 test('admin can log in, add a product, and delete it', async ({ page }) => {
   // Log in as admin
   await page.goto('/login.html');
-  await page.fill('#login-email', 'admintest@example.com');
-  await page.fill('#login-password', 'Admin123!');
+  await page.fill('#login-email', ADMIN_EMAIL);
+  await page.fill('#login-password', ADMIN_PASSWORD);
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/index\.html/);
 

@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { createTestProduct } = require('../helpers/test-data');
+const { ADMIN_EMAIL, ADMIN_PASSWORD } = require('../helpers/config');
 
 test.describe('Product Search', () => {
 
@@ -13,12 +14,12 @@ test.describe('Product Search', () => {
 
         await page.fill(
             '#login-email',
-            'admintest@example.com'
+            ADMIN_EMAIL
         );
 
         await page.fill(
             '#login-password',
-            'Admin123!'
+            ADMIN_PASSWORD
         );
 
         await page.click('button[type="submit"]');

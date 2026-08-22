@@ -1,13 +1,14 @@
 const { test, expect } = require('@playwright/test');
+const { API_BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD } = require('../helpers/config');
 
 test('WebKit can call login API directly', async ({ request }) => {
 
     const response = await request.post(
-        'http://127.0.0.1:3000/api/login',
+        `${API_BASE_URL}/api/login`,
         {
             data: {
-                email: 'admintest@example.com',
-                password: 'Admin123!'
+                email: ADMIN_EMAIL,
+                password: ADMIN_PASSWORD
             }
         }
     );
