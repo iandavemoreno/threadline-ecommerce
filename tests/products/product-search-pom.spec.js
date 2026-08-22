@@ -5,7 +5,7 @@ const HomePage = require('../../pages/HomePage');
 
 test.describe('Product Search - Page Object Model', () => {
 
-    test('user can search for a product', async ({ page }) => {
+    test('user can search for a product @smoke', async ({ page }) => {
 
         const homePage = new HomePage(page);
 

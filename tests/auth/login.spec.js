@@ -3,7 +3,7 @@ const LoginPage = require('../../pages/LoginPage');
 const SignupPage = require('../../pages/SignupPage');
 const { createUniqueEmail } = require('../helpers/test-data');
 
-test('user can log in successfully', async ({ page }) => {
+test('user can log in successfully @smoke', async ({ page }) => {
   const uniqueEmail = createUniqueEmail('testuser');
   const password = 'Password123!';
 

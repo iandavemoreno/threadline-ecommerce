@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { API_BASE_URL, ADMIN_EMAIL } = require('../helpers/config');
 
 test.describe('Orders API', () => {
-    test('user can create an order', async ({ request }) => {
+    test('user can create an order @smoke', async ({ request }) => {
 
         const response = await request.post(
             `${API_BASE_URL}/api/orders`,

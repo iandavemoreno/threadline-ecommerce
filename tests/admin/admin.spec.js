@@ -4,7 +4,7 @@ const AdminPage = require('../../pages/AdminPage');
 const { ADMIN_EMAIL, ADMIN_PASSWORD } = require('../helpers/config');
 const { createTestProduct } = require('../helpers/test-data');
 
-test('admin can log in, add a product, and delete it', async ({ page }) => {
+test('admin can log in, add a product, and delete it @smoke', async ({ page }) => {
 
   const loginPage = new LoginPage(page);
   const adminPage = new AdminPage(page);

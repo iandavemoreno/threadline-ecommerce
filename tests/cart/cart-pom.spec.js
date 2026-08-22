@@ -17,7 +17,7 @@ test.describe('Cart - Page Object Model', () => {
     });
 
 
-    test('user can add a product to the cart', async ({ page }) => {
+    test('user can add a product to the cart @smoke', async ({ page }) => {
 
         const homePage = new HomePage(page);
         const cartPage = new CartPage(page);

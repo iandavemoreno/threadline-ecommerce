@@ -8,7 +8,7 @@ const CheckoutPage = require('../../pages/CheckoutPage');
 // as a full browse -> cart -> checkout smoke test, on top of the more
 // detailed validation coverage in checkout-pom.spec.js.
 
-test('user can complete checkout after adding a product from the product list', async ({ page }) => {
+test('user can complete checkout after adding a product from the product list @smoke', async ({ page }) => {
 
     const homePage = new HomePage(page);
     const checkoutPage = new CheckoutPage(page);

@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "description": "A full-stack e-commerce site built from scratch to practice web development and, eventually, automated testing with Playwright.",
   "main": "script.js",
-  "scripts": {},
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:report": "playwright show-report"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iandavemoreno/threadline-ecommerce.git"
