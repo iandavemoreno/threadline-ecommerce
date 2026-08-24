@@ -17,6 +17,33 @@
         <main>
             <p><a href="index.html">&larr; Back to all products</a></p>
             <div id="product-detail" class="product"></div>
+
+            <div id="reviews-section">
+                <h3>Reviews</h3>
+                <p id="reviews-summary"></p>
+                <div id="reviews-list"></div>
+
+                <p id="review-access-message"></p>
+                <form id="review-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="review-rating">Your Rating</label>
+                        <select id="review-rating">
+                            <option value="">Select a rating</option>
+                            <option value="5">5 - Excellent</option>
+                            <option value="4">4 - Good</option>
+                            <option value="3">3 - Average</option>
+                            <option value="2">2 - Poor</option>
+                            <option value="1">1 - Terrible</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="review-comment">Comment (optional)</label>
+                        <textarea id="review-comment" rows="3"></textarea>
+                    </div>
+                    <button type="submit">Submit Review</button>
+                    <p id="review-message"></p>
+                </form>
+            </div>
         </main>
 
         <footer>

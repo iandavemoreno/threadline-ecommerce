@@ -1172,3 +1172,104 @@ if (passwordForm) {
       });
   });
 }
+
+// Product reviews & ratings (product.html?id=X). Guarded by #reviews-section
+// so this is a no-op on every other page.
+function loadReviews(productId) {
+  const summaryEl = document.getElementById('reviews-summary');
+  const listEl = document.getElementById('reviews-list');
+  if (!listEl) return;
+
+  fetch('http://localhost:3000/api/products/' + productId + '/reviews')
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+      if (data.reviewCount === 0) {
+        summaryEl.textContent = 'No reviews yet.';
+        listEl.innerHTML = '';
+        return;
+      }
+
+      summaryEl.textContent =
+        data.averageRating + ' out of 5 (' + data.reviewCount +
+        (data.reviewCount === 1 ? ' review' : ' reviews') + ')';
+
+      let html = '';
+      data.reviews.forEach(function (review) {
+        html += '<div class="review">';
+        html += '<p class="review-rating">' + review.rating + ' / 5</p>';
+        html += '<p class="review-author">' + escapeHtml(review.reviewerEmail) + '</p>';
+        if (review.comment) {
+          html += '<p>' + escapeHtml(review.comment).replace(/\n/g, '<br>') + '</p>';
+        }
+        html += '</div>';
+      });
+
+      listEl.innerHTML = html;
+    })
+    .catch(function () {
+      listEl.innerHTML = '<p>Unable to load reviews. Is the backend running?</p>';
+    });
+}
+
+const reviewsSection = document.getElementById('reviews-section');
+
+if (reviewsSection) {
+  const params = new URLSearchParams(window.location.search);
+  const reviewsProductId = params.get('id');
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+  const reviewAccessMessage = document.getElementById('review-access-message');
+  const reviewForm = document.getElementById('review-form');
+
+  if (reviewsProductId) {
+    loadReviews(reviewsProductId);
+  }
+
+  if (!loggedInUser) {
+    reviewAccessMessage.textContent = 'You must be logged in to leave a review.';
+  } else if (reviewsProductId) {
+    reviewForm.style.display = 'block';
+
+    reviewForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const rating = document.getElementById('review-rating').value;
+      const comment = document.getElementById('review-comment').value.trim();
+      const messageEl = document.getElementById('review-message');
+      messageEl.textContent = '';
+      messageEl.className = '';
+
+      if (!rating) {
+        messageEl.textContent = 'Select a rating first.';
+        messageEl.className = 'error';
+        return;
+      }
+
+      fetch('http://localhost:3000/api/products/' + reviewsProductId + '/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': loggedInUser.email
+        },
+        body: JSON.stringify({ rating: Number(rating), comment: comment })
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            return { status: response.status, data: data };
+          });
+        })
+        .then(function (result) {
+          if (result.status === 200 || result.status === 201) {
+            showToast(result.data.updated ? 'Your review has been updated.' : 'Thanks for your review!');
+            loadReviews(reviewsProductId);
+          } else {
+            messageEl.textContent = result.data.error || 'Something went wrong submitting your review.';
+            messageEl.className = 'error';
+          }
+        })
+        .catch(function () {
+          messageEl.textContent = 'Something went wrong. Is the backend running?';
+          messageEl.className = 'error';
+        });
+    });
+  }
+}

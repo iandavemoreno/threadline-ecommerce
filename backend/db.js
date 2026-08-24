@@ -130,6 +130,27 @@ db.exec(`
 
 
 // ========================================
+// REVIEWS TABLE
+// ========================================
+
+// UNIQUE(product_id, user_id) enforces one review per user per product at
+// the database level - submitting again is an upsert (see POST
+// /api/products/:id/reviews) rather than a second row.
+db.exec(`
+    CREATE TABLE IF NOT EXISTS reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        reviewer_email TEXT NOT NULL,
+        rating INTEGER NOT NULL,
+        comment TEXT NOT NULL DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(product_id, user_id)
+    )
+`);
+
+
+// ========================================
 // COUPONS TABLE
 // ========================================
 

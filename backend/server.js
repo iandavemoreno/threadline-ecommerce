@@ -28,6 +28,88 @@ app.get('/api/products/:id', (req, res) => {
     res.json(product);
 });
 
+app.get('/api/products/:id/reviews', (req, res) => {
+    const product = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+
+    if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const reviews = db.prepare(`
+        SELECT id, reviewer_email, rating, comment, created_at
+        FROM reviews
+        WHERE product_id = ?
+        ORDER BY created_at DESC
+    `).all(product.id);
+
+    const reviewCount = reviews.length;
+
+    const averageRating = reviewCount === 0
+        ? null
+        : Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount) * 10) / 10;
+
+    res.json({
+        reviews: reviews.map((r) => ({
+            id: r.id,
+            reviewerEmail: r.reviewer_email,
+            rating: r.rating,
+            comment: r.comment,
+            createdAt: r.created_at
+        })),
+        averageRating: averageRating,
+        reviewCount: reviewCount
+    });
+});
+
+// requireLoggedInUser is defined further down (with the profile routes) -
+// function declarations are hoisted, so it's already available here.
+app.post('/api/products/:id/reviews', requireLoggedInUser, (req, res) => {
+    const product = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+
+    if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const rating = Number(req.body.rating);
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: 'Rating must be a whole number from 1 to 5.' });
+    }
+
+    const comment = req.body.comment !== undefined ? String(req.body.comment).trim() : '';
+    const user = req.currentUser;
+
+    // One review per user per product: submitting again is a real edit
+    // (rating/comment/timestamp all update), not a second row - checking
+    // for an existing review first also lets the response tell the caller
+    // whether this created a new review or updated theirs.
+    const existingReview = db
+        .prepare('SELECT id FROM reviews WHERE product_id = ? AND user_id = ?')
+        .get(product.id, user.id);
+
+    db.prepare(`
+        INSERT INTO reviews (product_id, user_id, reviewer_email, rating, comment)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(product_id, user_id) DO UPDATE SET
+            rating = excluded.rating,
+            comment = excluded.comment,
+            created_at = CURRENT_TIMESTAMP
+    `).run(product.id, user.id, user.email, rating, comment);
+
+    const saved = db
+        .prepare('SELECT id, reviewer_email, rating, comment, created_at FROM reviews WHERE product_id = ? AND user_id = ?')
+        .get(product.id, user.id);
+
+    res.status(existingReview ? 200 : 201).json({
+        id: saved.id,
+        reviewerEmail: saved.reviewer_email,
+        rating: saved.rating,
+        comment: saved.comment,
+        createdAt: saved.created_at,
+        updated: !!existingReview
+    });
+});
+
 app.post('/api/signup', (req, res) =>{
     const { email, password } = req.body;
 

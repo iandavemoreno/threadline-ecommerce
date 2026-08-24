@@ -321,3 +321,44 @@ button:disabled:hover {
 .product-description {
     line-height: 1.5;
 }
+
+#reviews-section {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #ddd;
+}
+
+#reviews-section h3 {
+    margin-bottom: 8px;
+}
+
+#reviews-summary {
+    color: #555;
+    margin-bottom: 12px;
+}
+
+.review {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.review:last-child {
+    border-bottom: none;
+}
+
+.review-rating {
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.review-author {
+    font-size: 13px;
+    color: #777;
+    margin-bottom: 4px;
+}
+
+#review-form {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+}
