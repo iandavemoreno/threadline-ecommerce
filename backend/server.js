@@ -95,6 +95,93 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+// Same X-User-Email convention as requireAdmin, but for any logged-in
+// account rather than admins only - used by the profile routes below.
+// Stashes the looked-up row on req.currentUser so route handlers don't
+// each re-query it.
+function requireLoggedInUser(req, res, next) {
+    const userEmail = req.headers['x-user-email'];
+
+    if (!userEmail) {
+        return res.status(401).json({ error: 'Not logged in.' });
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(userEmail);
+
+    if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+    }
+
+    req.currentUser = user;
+    next();
+}
+
+app.get('/api/profile', requireLoggedInUser, (req, res) => {
+    const user = req.currentUser;
+
+    res.json({
+        email: user.email,
+        role: user.role,
+        defaultName: user.default_name,
+        defaultAddress: user.default_address
+    });
+});
+
+app.put('/api/profile', requireLoggedInUser, (req, res) => {
+    const user = req.currentUser;
+
+    const defaultName = req.body.defaultName !== undefined
+        ? String(req.body.defaultName).trim()
+        : user.default_name;
+
+    const defaultAddress = req.body.defaultAddress !== undefined
+        ? String(req.body.defaultAddress).trim()
+        : user.default_address;
+
+    db.prepare('UPDATE users SET default_name = ?, default_address = ? WHERE id = ?')
+        .run(defaultName, defaultAddress, user.id);
+
+    res.json({
+        email: user.email,
+        role: user.role,
+        defaultName: defaultName,
+        defaultAddress: defaultAddress
+    });
+});
+
+app.put('/api/profile/password', requireLoggedInUser, (req, res) => {
+    const user = req.currentUser;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current and new password are required.' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    }
+
+    bcrypt.compare(currentPassword, user.password, (err, matches) => {
+        if (err) {
+            return res.status(500).json({ error: 'Something went wrong changing your password.' });
+        }
+
+        if (!matches) {
+            return res.status(401).json({ error: 'Current password is incorrect.' });
+        }
+
+        bcrypt.hash(newPassword, 10, (hashErr, hashedPassword) => {
+            if (hashErr) {
+                return res.status(500).json({ error: 'Something went wrong changing your password.' });
+            }
+
+            db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, user.id);
+
+            res.json({ message: 'Password updated successfully.' });
+        });
+    });
+});
+
 // Products created without a stock/category value (e.g. older API
 // callers/tests that predate these fields) default to these rather than
 // being rejected.

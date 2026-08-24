@@ -63,6 +63,22 @@ db.exec(`
     )
 `);
 
+// Migration: add default shipping info columns for databases created before
+// the profile page existed. DEFAULT '' means "no default saved yet" rather
+// than null, so checkout's pre-fill check (a truthy value) just skips it.
+const userColumns = db.prepare('PRAGMA table_info(users)').all();
+const hasDefaultNameColumn = userColumns.some((col) => col.name === 'default_name');
+
+if (!hasDefaultNameColumn) {
+    db.exec("ALTER TABLE users ADD COLUMN default_name TEXT NOT NULL DEFAULT ''");
+}
+
+const hasDefaultAddressColumn = userColumns.some((col) => col.name === 'default_address');
+
+if (!hasDefaultAddressColumn) {
+    db.exec("ALTER TABLE users ADD COLUMN default_address TEXT NOT NULL DEFAULT ''");
+}
+
 
 // ========================================
 // ORDERS TABLE

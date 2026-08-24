@@ -1,5 +1,5 @@
-// Show a "My Orders" link for any logged-in user, and an Admin link on top
-// of that for admins
+// Show "My Orders" and "My Profile" links for any logged-in user, and an
+// Admin link on top of that for admins
 const loggedInUserNav = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 if (loggedInUserNav) {
   const nav = document.querySelector('header nav');
@@ -8,6 +8,11 @@ if (loggedInUserNav) {
     ordersLink.href = 'orders.html';
     ordersLink.textContent = 'My Orders';
     nav.appendChild(ordersLink);
+
+    const profileLink = document.createElement('a');
+    profileLink.href = 'profile.html';
+    profileLink.textContent = 'My Profile';
+    nav.appendChild(profileLink);
 
     if (loggedInUserNav.role === 'admin') {
       const adminLink = document.createElement('a');
@@ -446,6 +451,31 @@ if (checkoutAccessMessage) {
       emailInput.value = loggedInUser.email;
       emailInput.readOnly = true;
     }
+
+    // Pre-fill from any saved default shipping info (Profile page) - a
+    // fresh account has empty strings for both, so the truthy checks below
+    // just leave the fields blank rather than overwriting anything. This
+    // only pre-fills; the fields stay editable for this specific order.
+    fetch('http://localhost:3000/api/profile', {
+      headers: { 'X-User-Email': loggedInUser.email }
+    })
+      .then(function (response) { return response.json(); })
+      .then(function (profile) {
+        const nameInput = document.getElementById('name');
+        const addressInput = document.getElementById('address');
+
+        if (nameInput && profile.defaultName) {
+          nameInput.value = profile.defaultName;
+        }
+
+        if (addressInput && profile.defaultAddress) {
+          addressInput.value = profile.defaultAddress;
+        }
+      })
+      .catch(function () {
+        // No default shipping info to pre-fill with - not a hard failure,
+        // the customer can just type their info in as before.
+      });
 
     renderOrderSummary();
   }
@@ -1002,4 +1032,143 @@ if (ordersAccessMessage) {
     document.getElementById('orders-content').style.display = 'block';
     loadOrders();
   }
+}
+
+// My Profile page
+function loadProfile(email) {
+  fetch('http://localhost:3000/api/profile', {
+    headers: { 'X-User-Email': email }
+  })
+    .then(function (response) {
+      return response.json();
+    })
+    .then(function (profile) {
+      document.getElementById('profile-email').textContent = profile.email;
+      document.getElementById('profile-role').textContent = profile.role;
+      document.getElementById('default-name').value = profile.defaultName || '';
+      document.getElementById('default-address').value = profile.defaultAddress || '';
+    })
+    .catch(function () {
+      document.getElementById('profile-access-message').textContent =
+        'Unable to load your profile. Is the backend running?';
+    });
+}
+
+const profileAccessMessage = document.getElementById('profile-access-message');
+
+if (profileAccessMessage) {
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  if (!loggedInUser) {
+    profileAccessMessage.textContent = 'You must be logged in to view your profile.';
+  } else {
+    document.getElementById('profile-content').style.display = 'block';
+    loadProfile(loggedInUser.email);
+  }
+}
+
+const shippingForm = document.getElementById('shipping-form');
+
+if (shippingForm) {
+  shippingForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+    const defaultName = document.getElementById('default-name').value.trim();
+    const defaultAddress = document.getElementById('default-address').value.trim();
+    const messageEl = document.getElementById('shipping-message');
+    messageEl.textContent = '';
+    messageEl.className = '';
+
+    fetch('http://localhost:3000/api/profile', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Email': loggedInUser.email
+      },
+      body: JSON.stringify({ defaultName: defaultName, defaultAddress: defaultAddress })
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { status: response.status, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.status === 200) {
+          messageEl.textContent = 'Shipping info saved.';
+          messageEl.className = 'coupon-success';
+        } else {
+          messageEl.textContent = result.data.error || 'Something went wrong saving your shipping info.';
+          messageEl.className = 'error';
+        }
+      })
+      .catch(function () {
+        messageEl.textContent = 'Something went wrong. Is the backend running?';
+        messageEl.className = 'error';
+      });
+  });
+}
+
+const passwordForm = document.getElementById('password-form');
+
+if (passwordForm) {
+  passwordForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmNewPassword = document.getElementById('confirm-new-password').value;
+    const messageEl = document.getElementById('password-message');
+    messageEl.textContent = '';
+    messageEl.className = '';
+
+    if (!currentPassword || !newPassword) {
+      messageEl.textContent = 'Enter your current and new password.';
+      messageEl.className = 'error';
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      messageEl.textContent = 'New password must be at least 6 characters.';
+      messageEl.className = 'error';
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      messageEl.textContent = 'New password and confirmation do not match.';
+      messageEl.className = 'error';
+      return;
+    }
+
+    fetch('http://localhost:3000/api/profile/password', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Email': loggedInUser.email
+      },
+      body: JSON.stringify({ currentPassword: currentPassword, newPassword: newPassword })
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { status: response.status, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.status === 200) {
+          messageEl.textContent = 'Password updated successfully.';
+          messageEl.className = 'coupon-success';
+          document.getElementById('current-password').value = '';
+          document.getElementById('new-password').value = '';
+          document.getElementById('confirm-new-password').value = '';
+        } else {
+          messageEl.textContent = result.data.error || 'Something went wrong changing your password.';
+          messageEl.className = 'error';
+        }
+      })
+      .catch(function () {
+        messageEl.textContent = 'Something went wrong. Is the backend running?';
+        messageEl.className = 'error';
+      });
+  });
 }
