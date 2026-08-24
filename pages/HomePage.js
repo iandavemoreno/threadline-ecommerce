@@ -52,6 +52,11 @@ class HomePage {
             hasText: productName
         });
     }
+
+
+    getProductLink(productName) {
+        return this.getProduct(productName).locator('a');
+    }
 }
 
 

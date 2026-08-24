@@ -81,13 +81,15 @@ label {
     font-weight: bold;
 }
 
-input {
+input,
+textarea {
     width: 100%;
     max-width: 400px;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 14px;
+    font-family: inherit;
 }
 
 .error {
@@ -305,4 +307,17 @@ button:disabled:hover {
 
 #order-summary p {
     margin-bottom: 6px;
+}
+
+.product h3 a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.product h3 a:hover {
+    text-decoration: underline;
+}
+
+.product-description {
+    line-height: 1.5;
 }

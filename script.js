@@ -18,6 +18,16 @@ if (loggedInUserNav) {
   }
 }
 
+// Minimal HTML escaping for free-text fields (currently just product
+// description) that get rendered into innerHTML - keeps a description
+// containing "<" or "&" from breaking the surrounding markup.
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function loadProducts() {
     const listEl = document.getElementById('product-list');
 
@@ -113,7 +123,7 @@ function loadProducts() {
 
                     html += '<div class="product">';
 
-                    html += '<h3>' + product.name + '</h3>';
+                    html += '<h3><a href="product.html?id=' + product.id + '">' + product.name + '</a></h3>';
 
                     html += '<p class="product-category">' + product.category + '</p>';
 
@@ -210,6 +220,90 @@ function loadProducts() {
 }
 
 loadProducts();
+
+// Product detail page (product.html?id=X). Guarded by #product-detail so
+// this is a no-op on every other page.
+function loadProductDetail() {
+  const detailEl = document.getElementById('product-detail');
+  if (!detailEl) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const productId = params.get('id');
+
+  if (!productId) {
+    detailEl.innerHTML = '<p class="error">No product specified.</p>';
+    return;
+  }
+
+  let currentProduct = null;
+
+  function render() {
+    if (!currentProduct) return;
+
+    // Same live "how many can I still add" logic as the homepage cards -
+    // recalculated on every render so it stays correct after Add to Cart.
+    const inCartCount = getCart().filter(function (item) {
+      return item.productId === currentProduct.id;
+    }).length;
+
+    const remaining = currentProduct.stock - inCartCount;
+
+    let stockHtml;
+    if (currentProduct.stock === 0) {
+      stockHtml = '<p class="stock-message out-of-stock">Out of stock</p>';
+    } else if (remaining <= 0) {
+      stockHtml = '<p class="stock-message">All ' + currentProduct.stock + ' in stock are already in your cart</p>';
+    } else {
+      stockHtml = '<p class="stock-message">' + remaining + ' in stock</p>';
+    }
+
+    let html = '';
+    html += '<h2>' + currentProduct.name + '</h2>';
+    html += '<p class="product-category">' + currentProduct.category + '</p>';
+    html += '<p class="product-price">$' + currentProduct.price.toFixed(2) + '</p>';
+
+    if (currentProduct.description) {
+      html += '<p class="product-description">' +
+        escapeHtml(currentProduct.description).replace(/\n/g, '<br>') +
+        '</p>';
+    }
+
+    html += stockHtml;
+    html += '<button id="detail-add-to-cart"' + (remaining > 0 ? '' : ' disabled') + '>Add to Cart</button>';
+
+    detailEl.innerHTML = html;
+
+    const addBtn = document.getElementById('detail-add-to-cart');
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        addToCart(currentProduct.id, currentProduct.name, currentProduct.price);
+        // addToCart() re-renders the homepage's own list (a no-op here
+        // since #product-list doesn't exist on this page) - re-render this
+        // page's own stock message/button state too.
+        render();
+      });
+    }
+  }
+
+  fetch('http://localhost:3000/api/products/' + productId)
+    .then(function (response) {
+      if (response.status === 404) {
+        detailEl.innerHTML = '<p class="error">Product not found.</p>';
+        return null;
+      }
+      return response.json();
+    })
+    .then(function (product) {
+      if (!product) return;
+      currentProduct = product;
+      render();
+    })
+    .catch(function () {
+      detailEl.innerHTML = '<p>Unable to load product. Is the backend running?</p>';
+    });
+}
+
+loadProductDetail();
 
 function getCart() {
   const cartData = localStorage.getItem('cart');
@@ -624,6 +718,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
     const price = parseFloat(document.getElementById('product-price').value);
     const stock = parseInt(document.getElementById('product-stock').value, 10);
     const category = document.getElementById('product-category').value.trim();
+    const description = document.getElementById('product-description').value.trim();
     const errorEl = document.getElementById('add-product-error');
     errorEl.textContent = '';
 
@@ -638,7 +733,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
         'Content-Type': 'application/json',
         'X-User-Email': loggedInUser.email
       },
-      body: JSON.stringify({ name: name, price: price, stock: stock, category: category})
+      body: JSON.stringify({ name: name, price: price, stock: stock, category: category, description: description })
     })
     .then(function (response){
       return response.json().then(function (data) {
@@ -651,6 +746,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
         document.getElementById('product-price').value = '';
         document.getElementById('product-stock').value = '';
         document.getElementById('product-category').value = '';
+        document.getElementById('product-description').value = '';
         errorEl.textContent = '';
         showToast('Product added successfully.');
         loadAdminProducts();
@@ -674,6 +770,12 @@ function showToast(message, isError){
   },2500);
 }
 
+// Populated by loadAdminProducts() and read by editAdminProduct() below -
+// looking the product up here instead of passing every field through the
+// onclick string avoids having to escape a multi-line description into an
+// HTML attribute.
+let adminProductsCache = [];
+
 function loadAdminProducts() {
   const listEl = document.getElementById('admin-product-list');
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
@@ -683,13 +785,15 @@ function loadAdminProducts() {
     return response.json();
   })
   .then(function (products) {
+    adminProductsCache = products;
+
     let html = '';
     products.forEach(function (product) {
       html += '<div class="product" id="product-row-' + product.id + '">';
       html += '<div class="product-view">';
       html += '<h3>' + product.name + '</h3>';
       html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ') - Stock: ' + product.stock + ' - Category: ' + product.category + '</p>';
-      html += '<button type="button" onclick="editAdminProduct(' + product.id + ', \'' + product.name.replace(/'/g, "\\'") + '\', ' + product.price + ', ' + product.stock + ', \'' + product.category.replace(/'/g, "\\'") + '\')">Edit</button>';
+      html += '<button type="button" onclick="editAdminProduct(' + product.id + ')">Edit</button>';
       html += '<button type="button" onclick="deleteAdminProduct(' + product.id + ')">Delete</button>';
       html += '</div>';
       html += '</div>';
@@ -698,24 +802,34 @@ function loadAdminProducts() {
   });
 }
 
-function editAdminProduct(id, currentName, currentPrice, currentStock, currentCategory) {
+function editAdminProduct(id) {
+  const product = adminProductsCache.find(function (p) {
+    return p.id === id;
+  });
+
+  if (!product) return;
+
   const rowEl = document.getElementById('product-row-' + id);
   rowEl.innerHTML =
     '<div class="form-group">' +
       '<label>Name</label>' +
-      '<input type="text" id="edit-name-' + id + '" value="' + currentName.replace(/"/g, '&quot;') + '">' +
+      '<input type="text" id="edit-name-' + id + '" value="' + product.name.replace(/"/g, '&quot;') + '">' +
     '</div>' +
     '<div class="form-group">' +
       '<label>Price</label>' +
-      '<input type="text" id="edit-price-' + id + '" value="' + currentPrice + '">' +
+      '<input type="text" id="edit-price-' + id + '" value="' + product.price + '">' +
     '</div>' +
     '<div class="form-group">' +
       '<label>Stock</label>' +
-      '<input type="text" id="edit-stock-' + id + '" value="' + currentStock + '">' +
+      '<input type="text" id="edit-stock-' + id + '" value="' + product.stock + '">' +
     '</div>' +
     '<div class="form-group">' +
       '<label>Category</label>' +
-      '<input type="text" id="edit-category-' + id + '" value="' + currentCategory.replace(/"/g, '&quot;') + '">' +
+      '<input type="text" id="edit-category-' + id + '" value="' + product.category.replace(/"/g, '&quot;') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>Description</label>' +
+      '<textarea id="edit-description-' + id + '" rows="3">' + escapeHtml(product.description || '') + '</textarea>' +
     '</div>' +
     '<p class="error" id="edit-error-' + id + '"></p>' +
     '<button type="button" onclick="saveAdminProduct(' + id + ')">Save</button>' +
@@ -728,6 +842,7 @@ function saveAdminProduct(id) {
   const price = parseFloat(document.getElementById('edit-price-' + id).value);
   const stock = parseInt(document.getElementById('edit-stock-' + id).value, 10);
   const category = document.getElementById('edit-category-' + id).value.trim();
+  const description = document.getElementById('edit-description-' + id).value.trim();
   const errorEl = document.getElementById('edit-error-' + id);
   errorEl.textContent = '';
 
@@ -742,7 +857,7 @@ function saveAdminProduct(id) {
       'Content-Type': 'application/json',
       'X-User-Email': loggedInUser.email
     },
-    body: JSON.stringify({ name: name, price: price, stock: stock, category: category })
+    body: JSON.stringify({ name: name, price: price, stock: stock, category: category, description: description })
   })
   .then(function (response) {
     return response.json().then(function (data) {

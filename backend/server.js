@@ -18,6 +18,16 @@ app.get('/api/products', (req, res) => {
     res.json(products);
 });
 
+app.get('/api/products/:id', (req, res) => {
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+
+    if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json(product);
+});
+
 app.post('/api/signup', (req, res) =>{
     const { email, password } = req.body;
 
@@ -90,6 +100,7 @@ function requireAdmin(req, res, next) {
 // being rejected.
 const DEFAULT_STOCK = 10;
 const DEFAULT_CATEGORY = 'Uncategorized';
+const DEFAULT_DESCRIPTION = '';
 
 function parseStock(stock) {
     if (stock === undefined || stock === null || stock === '') {
@@ -113,6 +124,17 @@ function parseCategory(category) {
     return String(category).trim();
 }
 
+// Unlike parseCategory, an explicit empty string here is a real value ("no
+// description") rather than "not provided" - only an entirely missing key
+// means "leave whatever it already was" on an update.
+function parseDescription(description) {
+    if (description === undefined || description === null) {
+        return null;
+    }
+
+    return String(description).trim();
+}
+
 app.post('/api/admin/products', requireAdmin, (req, res) => {
     const { name, price } = req.body;
 
@@ -131,21 +153,24 @@ app.post('/api/admin/products', requireAdmin, (req, res) => {
     }
 
     const categoryValue = parseCategory(req.body.category) || DEFAULT_CATEGORY;
+    const descriptionValue = parseDescription(req.body.description);
+    const finalDescription = descriptionValue === null ? DEFAULT_DESCRIPTION : descriptionValue;
 
     const existing = db.prepare('SELECT id FROM products WHERE name = ?').get(name);
     if (existing) {
         return res.status(409).json({error: 'A product with that name already exists.'});
     }
 
-    const insert = db.prepare('INSERT INTO products (name, price, stock, category) VALUES (?, ?, ?, ?)');
-    const result = insert.run(name, price, stockNumber, categoryValue);
+    const insert = db.prepare('INSERT INTO products (name, price, stock, category, description) VALUES (?, ?, ?, ?, ?)');
+    const result = insert.run(name, price, stockNumber, categoryValue, finalDescription);
 
     res.status(201).json({
         id: result.lastInsertRowid,
         name: name,
         price: price,
         stock: stockNumber,
-        category: categoryValue
+        category: categoryValue,
+        description: finalDescription
     });
 });
 
@@ -157,7 +182,7 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Name and price are required.' });
     }
 
-    const existingProduct = db.prepare('SELECT stock, category FROM products WHERE id = ?').get(id);
+    const existingProduct = db.prepare('SELECT stock, category, description FROM products WHERE id = ?').get(id);
 
     if (!existingProduct) {
         return res.status(404).json({ error: 'Product not found'});
@@ -169,23 +194,28 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Stock must be a whole number of 0 or more.' });
     }
 
-    // Stock/category left unspecified on an edit keep whatever they already
-    // were, rather than silently resetting them.
+    // Stock/category/description left unspecified on an edit keep whatever
+    // they already were, rather than silently resetting them. Description
+    // is the one exception where an explicitly-sent empty string is a real
+    // value (clearing it) rather than "not provided" - see parseDescription.
     if (stockNumber === null) {
         stockNumber = existingProduct.stock;
     }
 
     const categoryValue = parseCategory(req.body.category) || existingProduct.category;
 
+    const descriptionValue = parseDescription(req.body.description);
+    const finalDescription = descriptionValue === null ? existingProduct.description : descriptionValue;
+
     const existingNameClash = db.prepare('SELECT id FROM products WHERE name = ? AND id != ?').get(name, id);
     if (existingNameClash) {
         return res.status(409).json({ error: 'A product with that name already exists.'});
     }
 
-    const update = db.prepare('UPDATE products SET name = ?, price = ?, stock = ?, category = ? WHERE id = ?');
-    update.run(name, price, stockNumber, categoryValue, id);
+    const update = db.prepare('UPDATE products SET name = ?, price = ?, stock = ?, category = ?, description = ? WHERE id = ?');
+    update.run(name, price, stockNumber, categoryValue, finalDescription, id);
 
-    res.json({ id, name, price, stock: stockNumber, category: categoryValue });
+    res.json({ id, name, price, stock: stockNumber, category: categoryValue, description: finalDescription });
 });
 
 app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {

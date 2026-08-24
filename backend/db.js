@@ -40,6 +40,15 @@ if (!hasCategoryColumn) {
     db.exec("ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT 'Uncategorized'");
 }
 
+// Migration: add the description column for databases created before the
+// product detail page existed. DEFAULT '' keeps every existing product
+// showing "no description" instead of null.
+const hasDescriptionColumn = productColumns.some((col) => col.name === 'description');
+
+if (!hasDescriptionColumn) {
+    db.exec("ALTER TABLE products ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+}
+
 
 // ========================================
 // USERS TABLE
