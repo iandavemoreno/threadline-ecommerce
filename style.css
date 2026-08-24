@@ -275,3 +275,34 @@ button:disabled:hover {
     color: #c0392b;
     font-weight: bold;
 }
+
+.coupon-row {
+    display: flex;
+    gap: 10px;
+}
+
+.coupon-row input {
+    flex: 1;
+}
+
+#apply-coupon-btn {
+    padding: 10px 18px;
+    white-space: nowrap;
+}
+
+.coupon-success {
+    color: #1a7a3d;
+    font-size: 13px;
+    margin-top: 4px;
+    min-height: 16px;
+}
+
+#order-summary {
+    margin: 16px 0;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+}
+
+#order-summary p {
+    margin-bottom: 6px;
+}

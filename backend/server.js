@@ -194,6 +194,36 @@ app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
     res.json({ message: 'Product deleted.'});
 });
 
+// Looks up a coupon by code (case-insensitive) so checkout can show the
+// discount before the order is actually placed. The order itself
+// re-validates the code server-side rather than trusting whatever the
+// client displayed - this endpoint is for UI feedback only.
+function findActiveCoupon(code) {
+    if (!code || String(code).trim() === '') {
+        return null;
+    }
+
+    const coupon = db
+        .prepare('SELECT code, discount_percent, active FROM coupons WHERE UPPER(code) = ?')
+        .get(String(code).trim().toUpperCase());
+
+    if (!coupon || !coupon.active) {
+        return null;
+    }
+
+    return coupon;
+}
+
+app.get('/api/coupons/:code', (req, res) => {
+    const coupon = findActiveCoupon(req.params.code);
+
+    if (!coupon) {
+        return res.status(404).json({ error: 'Invalid or inactive coupon code.' });
+    }
+
+    res.json({ code: coupon.code, discountPercent: coupon.discount_percent });
+});
+
 // Thrown from inside the orders transaction below to reject the whole order
 // (and roll back any stock already decremented for earlier items in the
 // same order) with a specific status/message, without special-casing
@@ -211,7 +241,8 @@ app.post('/api/orders', (req, res) => {
         email,
         customerName,
         address,
-        items
+        items,
+        couponCode
     } = req.body;
 
 
@@ -247,7 +278,7 @@ app.post('/api/orders', (req, res) => {
     // gets decremented for an order that ultimately doesn't go through.
     const createOrder = db.transaction(() => {
 
-        let total = 0;
+        let subtotal = 0;
         const orderItems = [];
 
         for (const item of items) {
@@ -287,7 +318,7 @@ app.post('/api/orders', (req, res) => {
                 );
             }
 
-            total += product.price * quantity;
+            subtotal += product.price * quantity;
 
             orderItems.push({
                 productId: product.id,
@@ -298,6 +329,29 @@ app.post('/api/orders', (req, res) => {
         }
 
 
+        // Re-validate the coupon against the database here rather than
+        // trusting a discount amount computed on the client - the same
+        // principle as the stock check above.
+        let discountAmount = 0;
+        let appliedCouponCode = null;
+
+        if (couponCode) {
+            const coupon = findActiveCoupon(couponCode);
+
+            if (!coupon) {
+                throw new OrderValidationError(
+                    400,
+                    'That coupon code is invalid or no longer active.'
+                );
+            }
+
+            discountAmount = Math.round(subtotal * (coupon.discount_percent / 100) * 100) / 100;
+            appliedCouponCode = coupon.code;
+        }
+
+        const total = subtotal - discountAmount;
+
+
         const orderResult = db
             .prepare(`
                 INSERT INTO orders (
@@ -305,16 +359,20 @@ app.post('/api/orders', (req, res) => {
                     customer_name,
                     email,
                     address,
-                    total
+                    total,
+                    coupon_code,
+                    discount_amount
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             `)
             .run(
                 user.id,
                 customerName,
                 email,
                 address,
-                total
+                total,
+                appliedCouponCode,
+                discountAmount
             );
 
 
@@ -346,18 +404,20 @@ app.post('/api/orders', (req, res) => {
         }
 
 
-        return { orderId, total };
+        return { orderId, total, discountAmount, couponCode: appliedCouponCode };
     });
 
 
     try {
 
-        const { orderId, total } = createOrder();
+        const { orderId, total, discountAmount, couponCode: appliedCouponCode } = createOrder();
 
         res.status(201).json({
             message: 'Order placed successfully.',
             orderId,
-            total
+            total,
+            discountAmount,
+            couponCode: appliedCouponCode
         });
 
     } catch (err) {
@@ -386,7 +446,7 @@ app.get('/api/orders', (req, res) => {
 
     const orders = db
         .prepare(`
-            SELECT id, customer_name, email, address, total, created_at
+            SELECT id, customer_name, email, address, total, coupon_code, discount_amount, created_at
             FROM orders
             WHERE user_id = ?
             ORDER BY created_at DESC

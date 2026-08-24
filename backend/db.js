@@ -71,6 +71,22 @@ db.exec(`
     )
 `);
 
+// Migration: add coupon_code/discount_amount columns for databases created
+// before coupon support existed. discount_amount defaults to 0 so every
+// pre-existing order reads as "no discount applied" rather than NULL.
+const orderColumns = db.prepare('PRAGMA table_info(orders)').all();
+const hasCouponCodeColumn = orderColumns.some((col) => col.name === 'coupon_code');
+
+if (!hasCouponCodeColumn) {
+    db.exec('ALTER TABLE orders ADD COLUMN coupon_code TEXT');
+}
+
+const hasDiscountAmountColumn = orderColumns.some((col) => col.name === 'discount_amount');
+
+if (!hasDiscountAmountColumn) {
+    db.exec('ALTER TABLE orders ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0');
+}
+
 
 // ========================================
 // ORDER ITEMS TABLE
@@ -86,6 +102,32 @@ db.exec(`
         quantity INTEGER NOT NULL
     )
 `);
+
+
+// ========================================
+// COUPONS TABLE
+// ========================================
+
+db.exec(`
+    CREATE TABLE IF NOT EXISTS coupons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        discount_percent INTEGER NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1
+    )
+`);
+
+const couponCount = db.prepare('SELECT COUNT(*) AS total FROM coupons').get();
+
+if (couponCount.total === 0) {
+
+    const insertCoupon = db.prepare(
+        'INSERT INTO coupons (code, discount_percent, active) VALUES (?, ?, ?)'
+    );
+
+    insertCoupon.run('WELCOME10', 10, 1);
+    insertCoupon.run('SAVE20', 20, 1);
+}
 
 
 // ========================================

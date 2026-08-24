@@ -324,6 +324,16 @@ function validateCheckoutForm(name, email,address) {
   return isValid;
 }
 
+// Coupon codes at checkout. appliedCoupon is only ever set from a
+// successful /api/coupons/:code response - the discount shown here is for
+// UI feedback only, since the order itself re-validates the code and
+// recalculates the discount server-side rather than trusting this value.
+// Declared here (before it's first read below) because `let` bindings,
+// unlike function declarations, aren't usable before their own line runs -
+// referencing it any earlier throws a ReferenceError and stops the rest of
+// the script from executing on this page.
+let appliedCoupon = null;
+
 // Checkout requires being logged in - the account is what "My Orders" later
 // looks up orders by, so the email field is locked to it rather than
 // free-typed.
@@ -342,7 +352,79 @@ if (checkoutAccessMessage) {
       emailInput.value = loggedInUser.email;
       emailInput.readOnly = true;
     }
+
+    renderOrderSummary();
   }
+}
+
+function renderOrderSummary() {
+  const summaryEl = document.getElementById('order-summary');
+  if (!summaryEl) return;
+
+  const cart = getCart();
+  const subtotal = cart.reduce(function (sum, item) { return sum + item.price; }, 0);
+  const discountAmount = appliedCoupon
+    ? Math.round(subtotal * (appliedCoupon.discountPercent / 100) * 100) / 100
+    : 0;
+  const total = subtotal - discountAmount;
+
+  document.getElementById('summary-subtotal').textContent = subtotal.toFixed(2);
+
+  const discountRow = document.getElementById('summary-discount-row');
+  if (discountAmount > 0) {
+    discountRow.style.display = 'block';
+    document.getElementById('summary-discount').textContent = discountAmount.toFixed(2);
+  } else {
+    discountRow.style.display = 'none';
+  }
+
+  document.getElementById('summary-total').textContent = total.toFixed(2);
+}
+
+const applyCouponBtn = document.getElementById('apply-coupon-btn');
+
+if (applyCouponBtn) {
+  applyCouponBtn.addEventListener('click', function () {
+    const couponMessage = document.getElementById('coupon-message');
+    const code = document.getElementById('coupon-code').value.trim();
+
+    couponMessage.textContent = '';
+    couponMessage.className = '';
+
+    if (!code) {
+      appliedCoupon = null;
+      couponMessage.textContent = 'Enter a promo code first.';
+      couponMessage.className = 'error';
+      renderOrderSummary();
+      return;
+    }
+
+    fetch('http://localhost:3000/api/coupons/' + encodeURIComponent(code))
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { status: response.status, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.status === 200) {
+          appliedCoupon = { code: result.data.code, discountPercent: result.data.discountPercent };
+          couponMessage.textContent =
+            'Applied "' + appliedCoupon.code + '" - ' + appliedCoupon.discountPercent + '% off.';
+          couponMessage.className = 'coupon-success';
+        } else {
+          appliedCoupon = null;
+          couponMessage.textContent = result.data.error || 'Invalid coupon code.';
+          couponMessage.className = 'error';
+        }
+        renderOrderSummary();
+      })
+      .catch(function () {
+        appliedCoupon = null;
+        couponMessage.textContent = 'Something went wrong. Is the backend running?';
+        couponMessage.className = 'error';
+        renderOrderSummary();
+      });
+  });
 }
 
 const checkoutForm = document.getElementById('checkout-form');
@@ -376,7 +458,8 @@ if (checkoutForm) {
         email: email,
         customerName: name,
         address: address,
-        items: items
+        items: items,
+        couponCode: appliedCoupon ? appliedCoupon.code : null
       })
     })
     .then(function (response) {
@@ -389,7 +472,19 @@ if (checkoutForm) {
         localStorage.removeItem('cart');
         updateCartCount();
         checkoutForm.style.display = 'none';
-        document.getElementById('order-confirmation').innerHTML = '<p> Thank you, ' + name + '! Your order has been placed. </p>';
+        document.getElementById('order-summary').style.display = 'none';
+
+        let confirmationHtml = '<p> Thank you, ' + name + '! Your order has been placed. </p>';
+
+        if (result.data.discountAmount > 0) {
+          confirmationHtml +=
+            '<p>Discount applied (' + result.data.couponCode + '): -$' +
+            result.data.discountAmount.toFixed(2) + '</p>';
+        }
+
+        confirmationHtml += '<p class="order-total">Total: $' + result.data.total.toFixed(2) + '</p>';
+
+        document.getElementById('order-confirmation').innerHTML = confirmationHtml;
       } else {
         document.getElementById('order-confirmation').innerHTML =
           '<p class="error">' + (result.data.error || 'Something went wrong placing your order.') + '</p>';
@@ -765,6 +860,11 @@ function loadOrders() {
       });
 
       html += '</ul>';
+
+      if (order.discount_amount > 0) {
+        html += '<p>Discount applied (' + order.coupon_code + '): -$' + order.discount_amount.toFixed(2) + '</p>';
+      }
+
       html += '<p class="order-total">Total: $' + order.total.toFixed(2) + '</p>';
       html += '</div>';
     });

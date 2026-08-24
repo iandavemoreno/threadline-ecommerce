@@ -33,6 +33,18 @@ class CheckoutPage {
         // Cart count
         this.cartCount =
             page.locator('#cart-count');
+
+        // Coupon code
+        this.couponCodeInput = page.locator('#coupon-code');
+        this.applyCouponButton = page.locator('#apply-coupon-btn');
+        this.couponMessage = page.locator('#coupon-message');
+
+        // Order summary (subtotal/discount/total shown before placing the order)
+        this.orderSummary = page.locator('#order-summary');
+        this.summarySubtotal = page.locator('#summary-subtotal');
+        this.summaryDiscountRow = page.locator('#summary-discount-row');
+        this.summaryDiscount = page.locator('#summary-discount');
+        this.summaryTotal = page.locator('#summary-total');
     }
 
 
@@ -69,6 +81,12 @@ class CheckoutPage {
         await this.nameInput.fill(name);
 
         await this.addressInput.fill(address);
+    }
+
+
+    async applyCoupon(code) {
+        await this.couponCodeInput.fill(code);
+        await this.applyCouponButton.click();
     }
 
 
