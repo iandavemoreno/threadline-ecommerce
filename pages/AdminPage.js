@@ -14,11 +14,38 @@ class AdminPage {
 
         this.productList = page.locator('#admin-product-list');
         this.toast = page.locator('#toast');
+
+        this.orderList = page.locator('#admin-order-list');
     }
 
 
     async goto() {
         await this.page.goto('/admin.html');
+    }
+
+
+    getOrderCard(orderId) {
+        return this.page.locator('#admin-order-' + orderId);
+    }
+
+
+    getOrderStatusSelect(orderId) {
+        return this.page.locator('#order-status-' + orderId);
+    }
+
+
+    // Waits for the actual PUT /api/admin/orders/:id/status response before
+    // resolving, same principle as addProduct()/editProduct() above - the
+    // toast/recoloring only happen once that response comes back.
+    async setOrderStatus(orderId, status) {
+        const updateResponsePromise = this.page.waitForResponse(resp =>
+            resp.url().includes('/api/admin/orders/') &&
+            resp.url().includes('/status') &&
+            resp.request().method() === 'PUT'
+        );
+
+        await this.getOrderStatusSelect(orderId).selectOption(status);
+        await updateResponsePromise;
     }
 
 

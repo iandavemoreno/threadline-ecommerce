@@ -22,6 +22,11 @@ class OrdersPage {
             hasText: productName
         });
     }
+
+
+    getOrderStatus(productName) {
+        return this.getOrderContaining(productName).locator('.order-status');
+    }
 }
 
 

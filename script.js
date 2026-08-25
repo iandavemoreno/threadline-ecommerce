@@ -1096,6 +1096,7 @@ function loadOrders() {
     orders.forEach(function (order) {
       html += '<div class="product order" id="order-' + order.id + '">';
       html += '<h3>Order #' + order.id + '</h3>';
+      html += '<p class="order-status status-' + order.status.toLowerCase() + '">' + order.status + '</p>';
       html += '<p>' + new Date(order.created_at).toLocaleString() + '</p>';
       html += '<p>Shipping to: ' + order.address + '</p>';
       html += '<ul>';
