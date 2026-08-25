@@ -112,6 +112,16 @@ if (!hasDiscountAmountColumn) {
     db.exec('ALTER TABLE orders ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0');
 }
 
+// Migration: add the status column for databases created before admin order
+// management existed. DEFAULT 'Pending' backfills every existing order into
+// the start of the Pending -> Shipped -> Delivered/Cancelled flow instead of
+// leaving it null.
+const hasStatusColumn = orderColumns.some((col) => col.name === 'status');
+
+if (!hasStatusColumn) {
+    db.exec("ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'Pending'");
+}
+
 
 // ========================================
 // ORDER ITEMS TABLE

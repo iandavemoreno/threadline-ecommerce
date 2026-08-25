@@ -645,7 +645,7 @@ app.get('/api/orders', (req, res) => {
 
     const orders = db
         .prepare(`
-            SELECT id, customer_name, email, address, total, coupon_code, discount_amount, created_at
+            SELECT id, customer_name, email, address, total, coupon_code, discount_amount, status, created_at
             FROM orders
             WHERE user_id = ?
             ORDER BY created_at DESC
@@ -662,6 +662,51 @@ app.get('/api/orders', (req, res) => {
     }));
 
     res.json(ordersWithItems);
+});
+
+// Allowed order statuses for PUT /api/admin/orders/:id/status - kept as a
+// single source of truth so the validation list below can't quietly drift
+// from what the admin UI's dropdown actually offers.
+const ORDER_STATUSES = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
+
+app.get('/api/admin/orders', requireAdmin, (req, res) => {
+    const orders = db.prepare(`
+        SELECT id, customer_name, email, address, total, coupon_code, discount_amount, status, created_at
+        FROM orders
+        ORDER BY created_at DESC
+        `)
+        .all();
+
+    const getItems = db.prepare(
+        'SELECT product_id, product_name, price, quantity FROM order_items WHERE order_id = ?'
+        );
+
+    const ordersWithItems = orders.map((order) => ({
+        ...order,
+        items: getItems.all(order.id)
+    }));
+
+    res.json(ordersWithItems);
+});
+
+app.put('/api/admin/orders/:id/status', requireAdmin, (req, res) => {
+    const { status } = req.body;
+
+    if (!ORDER_STATUSES.includes(status)) {
+        return res.status(400).json({
+            error: `Status must be one of : ${ORDER_STATUSES.join(', ')}.`
+        });
+    }
+
+    const order = db.prepare(`SELECT id FROM orders WHERE id = ?`).get(req.params.id);
+
+    if (!order) {
+        return res.status(404).json({ error: 'Order not found.' });
+    }
+
+    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, order.id);
+
+    res.json({ id: order.id, status});
 });
 
 app.listen(PORT, () => {

@@ -740,6 +740,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
 } else {
   document.getElementById('admin-content').style.display = "block";
   loadAdminProducts();
+  loadAdminOrders();
 
   document.getElementById('add-product-form').addEventListener('submit', function (event) {
     event.preventDefault();
@@ -926,6 +927,105 @@ function deleteAdminProduct(id) {
   })
   .catch(function() {
     showToast('Something went wrong deleting the product.', true);
+  });
+}
+
+// All statuses an order can be moved through, in the order they're offered
+// in the admin dropdown - kept in one place so it can't drift from the
+// backend's own ORDER_STATUSES list.
+
+const ORDER_STATUSES = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
+
+function loadAdminOrders() {
+  const listEl = document.getElementById('admin-order-list');
+  if (!listEl) return;
+
+  fetch('http://localhost:3000/api/admin/orders', {
+    headers: { 'X-User-Email': JSON.parse(localStorage.getItem('loggedInUser') || 'null').email }
+  })
+  .then(function(response) {
+    return response.json();
+  })
+  .then(function(orders) {
+
+    if (orders.length === 0) {
+      listEl.innerHTML = '<p>No orders yet.</p>';
+      return;
+    }
+
+    let html = '';
+
+    orders.forEach(function (order) {
+      html += '<div class="product order order-' + order.status.toLowerCase() + '" id="admin-order-' + order.id + '">';
+      html += '<h3>Order #' + order.id + '</h3>';
+      html += '<p>' + order.customer_name + ' (' + order.email + ')</p>';
+      html += '<p>' + new Date(order.created_at).toLocaleString() + '</p>';
+      html += '<p>Shipping to: ' + order.address + '</p>';
+      html += '<ul>';
+
+      order.items.forEach(function (item) {
+        html += '<li>' + item.product_name + ' x' + item.quantity + ' - $' + item.price.toFixed(2) + '</li>';
+      });
+
+      html += '</ul>';
+
+      if (order.discount_amount > 0) {
+        html += '<p>Discount applied (' + order.coupon_code + '): -$' + order.discount_amount.toFixed(2) + '</p>';
+      }
+
+      html += '<p class="order-total">Total: $' + order.total.toFixed(2) + '</p>';
+
+      html += '<div class="form-group">';
+      html += '<label for="order-status-' + order.id + '">Status</label>';
+      html += '<select id="order-status-' + order.id + '" class="order-status-select status-' + order.status.toLowerCase() + '" onchange="updateOrderStatus(' + order.id + ', this)">';
+    
+      ORDER_STATUSES.forEach(function (status) {
+        html += '<option value="' + status + '"' + (status === order.status ? ' selected' : '') + '>' + status + '</option>';
+      });
+
+      html += '</select>';
+      html += '</div>';
+
+      html += '</div>';
+    });
+
+    listEl.innerHTML = html;
+  })
+  .catch(function () {
+    listEl.innerHTML = '<p>Unable to load orders. Is the backend running?</p>';
+  });
+}
+
+function updateOrderStatus(orderId, SelectEl) {
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+  const newStatus = SelectEl.value;
+
+  fetch('http://localhost:3000/api/admin/orders/' + orderId + '/status', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Email': loggedInUser.email
+    },
+    body: JSON.stringify({ status: newStatus })
+  })
+  .then(function (response) {
+    return response.json().then(function (data) {
+      return { status: response.status, data: data };
+    });
+  })
+  .then(function (result) {
+    if (result.status === 200) {
+      SelectEl.className = 'order-status-select status-' + newStatus.toLowerCase();
+      document.getElementById('admin-order-' + orderId).className = 'product order order-' + newStatus.toLowerCase();
+      showToast('Order #' + orderId + ' marked as ' + newStatus + '.');
+    } else {
+      showToast(result.data.error || 'Something went wrong updating the order.', true);
+      loadAdminOrders();
+    }
+  })
+  .catch(function () {
+    showToast('Something went wrong. Is the backend running?', true);
+    loadAdminOrders();
   });
 }
 

@@ -263,6 +263,11 @@ button:disabled:hover {
     margin: 8px 0 12px 20px;
 }
 
+.order .form-group {
+    margin-top: 12px;
+    margin-bottom: 0;
+}
+
 .order-total {
     font-weight: bold;
 }
@@ -361,4 +366,54 @@ button:disabled:hover {
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px solid #ddd;
+}
+
+.order-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: #eee;
+    color: #555;
+}
+
+.status-shipped {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-cancelled {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.order-status-select{
+    border: none;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.order-pending {
+    border-left: 8px solid #999;
+}
+
+.order-shipped {
+    border-left: 8px solid #1d4ed8;
+}
+
+.order-delivered {
+    border-left: 8px solid #15803d;
+}
+
+.order-cancelled {
+    border-left: 8px solid #b91c1c;
 }
