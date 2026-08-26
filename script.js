@@ -1,3 +1,10 @@
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(() => console.log('Service worker registered.'))
+            .catch((error) => console.error('Service worker registration failed:', error));
+    });
+}
 // Show "My Orders" and "My Profile" links for any logged-in user, and an
 // Admin link on top of that for admins
 const loggedInUserNav = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
