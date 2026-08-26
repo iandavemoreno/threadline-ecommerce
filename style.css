@@ -417,3 +417,53 @@ button:disabled:hover {
 .order-cancelled {
     border-left: 8px solid #b91c1c;
 }
+
+/* Responsive Layout - feauture #9 */
+
+#product-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+#product-list .product {
+    margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px 20px;
+    }
+
+    nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    nav a,
+    #signout-btn {
+        margin-left: 0;
+        white-space: nowrap;
+    }
+    main {
+        margin: 20px auto;
+    }
+
+    .coupon-row {
+        flex-direction: column;
+    }
+    
+    #apply-coupon-btn {
+        width: 100%;
+    }
+
+    #product-search {
+        min-width: 0;
+        width: 100%;
+    }
+}
