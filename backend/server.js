@@ -423,6 +423,94 @@ app.get('/api/coupons/:code', (req, res) => {
     res.json({ code: coupon.code, discountPercent: coupon.discount_percent });
 });
 
+app.get('/api/admin/coupons', requireAdmin, (req, res) => {
+    const coupons = db.prepare('SELECT id, code, discount_percent,active FROM coupons ORDER BY code ASC').all();
+    res.json(coupons);
+});
+
+app.post ('/api/admin/coupons', requireAdmin, (req, res) => {
+    const { code, discountPercent } = req.body;
+
+    if (!code || !discountPercent) {
+        return res.status(400).json({ error: 'Code and discount percent are required.'});
+    }
+
+    const discountNumber = Number(discountPercent);
+
+    if (!Number.isInteger(discountNumber) || discountNumber < 1 || discountNumber > 100) {
+        return res.status(400).json({ error: 'Discount percent must be a whole number between  1 and 100.'});
+    }
+
+    const codeValue = String(code).trim().toUpperCase();
+
+    if (!codeValue) {
+        return res.status(400).json({error: 'Code and discount percent are required.'});
+    }
+
+    const existing = db.prepare('SELECT id FROM coupons WHERE UPPER(code) = ?').get(codeValue);
+    if (existing) {
+        return res.status(409),json({ error: 'A coupon with that code already exists.'});
+    }
+
+    const insert = db.prepare('INSERT INTO coupons (code, discount_percent, active) VALUES (?, ?, 1)');
+    const result = insert.run(codeValue, discountNumber);
+
+    res.status(201).json({
+        id: result.lastInsertRowid,
+        code: codeValue,
+        discount_percent: discountNumber,
+        active: 1
+    });
+})
+
+app.put('/api/admin/coupons/:id', requireAdmin, (req, res) => {
+    const { id } = req.params;
+    const { code, discountPercent, active } = req.body;
+
+    const existingCoupon = db.prepare('SELECT * FROM coupons WHERE id = ?').get(id);
+    if (!existingCoupon) {
+        return res.status(404).json({ error: 'Coupon not found.'});
+    }
+
+    let codeValue = existingCoupon.code;
+    if(code !== undefined) {
+        codeValue = String(code).trim().toUpperCase();
+        if (!codeValue) {
+            return res.status(400).json({ error: 'Code cannot be empty. '});
+        }
+        
+        const clash = db.prepare('SELECT id FROM coupons WHERE UPPER(code) =? AND id != ?').get(codeValue, id);
+        if(clash) {
+            return res.status(409).json({ error: 'A coupon with that code already exists.'});
+        }
+    }
+
+    let discountValue = existingCoupon.discount_percent;
+    if (discountPercent !== undefined) {
+        const discountNumber = Number(discountPercent);
+        if (!Number.isInteger(discountNumber) || discountNumber < 1 || discountNumber > 100) {
+            return res.status(400).json({ error: 'Discount percent must be a whole number between 1 and 100. '});
+        }
+        discountValue = discountNumber;
+    }
+
+    let activeValue = existingCoupon.active;
+    if (active !== undefined) {
+        activeValue = active ? 1 : 0;
+    }
+
+    db.prepare('UPDATE coupons SET code = ?, discount_percent = ?, active = ? WHERE id = ?')
+        .run(codeValue, discountValue, activeValue, id);
+
+        res.json({ id: Number(id), code: codeValue, discount_percent: discountValue, active: activeValue});
+});
+
+app.delete('/api/admin/coupons/:id', requireAdmin, (req, res) => {
+    const { id } = req.params;
+    db.prepare('DELETE FROM coupons WHERE id = ?').run(id);
+    res.json({ message: 'Coupon deleted.'});
+});
+
 // Thrown from inside the orders transaction below to reject the whole order
 // (and roll back any stock already decremented for earlier items in the
 // same order) with a specific status/message, without special-casing

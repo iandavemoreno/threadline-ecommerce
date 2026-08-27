@@ -748,6 +748,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
   document.getElementById('admin-content').style.display = "block";
   loadAdminProducts();
   loadAdminOrders();
+  loadAdminCoupons();
 
   document.getElementById('add-product-form').addEventListener('submit', function (event) {
     event.preventDefault();
@@ -790,6 +791,43 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
         loadAdminProducts();
       } else {
         errorEl.textContent = result.data.error;
+      }
+    });
+  });
+
+  document.getElementById('add-coupon-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+    const code = document.getElementById('new-coupon-code').value;
+    const discountPercent = parseInt(document.getElementById('new-coupon-discount').value, 10);
+
+    if (!code || isNaN(discountPercent) || discountPercent < 1 || discountPercent > 100) {
+      showToast('Enter a valid code and discount percent (1-100).', true);
+      return;
+    }
+
+    fetch('http://localhost:3000/api/admin/coupons', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Email': loggedInUser.email
+      },
+      body: JSON.stringify({ code: code, discountPercent: discountPercent })
+    })
+    .then(function (response) {
+      return response.json().then(function (data) {
+        return { status: response.status, data: data };
+      });
+    })
+    .then(function (result) {
+      if (result.status === 201) {
+        document.getElementById('new-coupon-code').value = '';
+        document.getElementById('new-coupon-discount').value = '';
+        showToast('Coupon added successfully.');
+        loadAdminCoupons();
+      } else {
+        showToast(result.data.error || 'Something went wrong adding the coupon.', true);
       }
     });
   });
@@ -1033,6 +1071,168 @@ function updateOrderStatus(orderId, SelectEl) {
   .catch(function () {
     showToast('Something went wrong. Is the backend running?', true);
     loadAdminOrders();
+  });
+}
+
+let adminCouponsCache = [];
+
+function loadAdminCoupons() {
+  const listEl = document.getElementById('admin-coupon-list');
+  if (!listEl) return;
+
+  fetch('http://localhost:3000/api/admin/coupons', {
+    headers: { 'X-User-Email': JSON.parse(localStorage.getItem('loggedInUser') || 'null').email }
+  })
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function (coupons) {
+    adminCouponsCache = coupons;
+
+    if (coupons.length === 0) {
+      listEl.innerHTML = '<p>No coupons yet.</p>';
+      return;
+    }
+
+    let html = '';
+
+    coupons.forEach(function (coupon) {
+      html += '<div class="product" id="coupon-row-' + coupon.id + '">';
+      html += '<div class="coupon-view">';
+      html += '<h3>' + coupon.code + '</h3>';
+      html += '<p>' + coupon.discount_percent + '% off - ';
+      html += '<span class="order-status ' + (coupon.active ? 'status-delivered' : 'status-cancelled') + '">';
+      html += coupon.active ? 'Active' : 'Inactive';
+      html += '</span></p>';
+      html += '<button type="button" onclick="editAdminCoupon(' + coupon.id + ')">Edit</button>';
+      html += '<button type="button" onclick="toggleCouponActive(' + coupon.id + ')">' + (coupon.active ? 'Deactivate' : 'Activate') + '</button>';
+      html += '<button type="button" onclick="deleteAdminCoupon(' + coupon.id + ')">Delete</button>';
+      html += '</div>';
+      html += '</div>';
+    });
+
+    listEl.innerHTML = html;
+  })
+  .catch(function () {
+    listEl.innerHTML = '<p>Unable to load coupons. Is the backend running?</p>';
+  });
+}
+
+function editAdminCoupon(id) {
+  const coupon = adminCouponsCache.find(function (c) {
+    return c.id === id;
+  });
+
+  if (!coupon) return;
+
+  const rowEl = document.getElementById('coupon-row-' + id);
+  rowEl.innerHTML =
+    '<div class="form-group">' +
+      '<label>Code</label>' +
+      '<input type="text" id="edit-coupon-code-' + id + '" value="' + coupon.code.replace(/"/g, '&quot;') + '">' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>Discount %</label>' +
+      '<input type="number" id="edit-coupon-discount-' + id + '" value="' + coupon.discount_percent + '" min="1" max="100">' +
+    '</div>' +
+    '<p class="error" id="edit-coupon-error-' + id + '"></p>' +
+    '<button type="button" onclick="saveAdminCoupon(' + id + ')">Save</button>' +
+    '<button type="button" onclick="loadAdminCoupons()">Cancel</button>';
+}
+
+function saveAdminCoupon(id) {
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+  const code = document.getElementById('edit-coupon-code-' + id).value;
+  const discountPercent = parseInt(document.getElementById('edit-coupon-discount-' + id).value, 10);
+  const errorEl = document.getElementById('edit-coupon-error-' + id);
+  errorEl.textContent = '';
+
+  if (!code || isNaN(discountPercent) || discountPercent < 1 || discountPercent > 100) {
+    errorEl.textContent = 'Enter a valid code and discount percent (1-100).';
+    return;
+  }
+
+  fetch('http://localhost:3000/api/admin/coupons/' + id, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Email': loggedInUser.email
+    },
+    body: JSON.stringify({ code: code, discountPercent: discountPercent })
+  })
+  .then(function (response) {
+    return response.json().then(function (data) {
+      return { status: response.status, data: data };
+    });
+  })
+  .then(function (result) {
+    if (result.status === 200) {
+      showToast('Coupon updated successfully.');
+      loadAdminCoupons();
+    } else {
+      errorEl.textContent = result.data.error;
+    }
+  })
+  .catch(function () {
+    errorEl.textContent = 'Something went wrong updating the coupon.';
+  });
+}
+
+function toggleCouponActive(id) {
+  const coupon = adminCouponsCache.find(function (c) {
+    return c.id === id;
+  });
+
+  if (!coupon) return;
+
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+  const newActive = coupon.active ? false : true;
+
+  fetch('http://localhost:3000/api/admin/coupons/' + id, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Email': loggedInUser.email
+    },
+    body: JSON.stringify({ active: newActive })
+  })
+  .then(function (response) {
+    return response.json().then(function (data) {
+      return { status: response.status, data: data };
+    });
+  })
+  .then(function (result) {
+    if (result.status === 200) {
+      showToast('Coupon ' + (newActive ? 'activated' : 'deactivated') + '.');
+      loadAdminCoupons();
+    } else {
+      showToast(result.data.error || 'Something went wrong updating the coupon.', true);
+    }
+  })
+  .catch(function () {
+    showToast('Something went wrong. Is the backend running?', true);
+  });
+}
+
+function deleteAdminCoupon(id) {
+  const confirmed = confirm('Are you sure you want to delete this coupon?');
+  if (!confirmed) return;
+
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  fetch('http://localhost:3000/api/admin/coupons/' + id, {
+    method: 'DELETE',
+    headers: { 'X-User-Email': loggedInUser.email }
+  })
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function () {
+    showToast('Coupon deleted.');
+    loadAdminCoupons();
+  })
+  .catch(function () {
+    showToast('Something went wrong deleting the coupon.', true);
   });
 }
 

@@ -392,6 +392,11 @@ button:disabled:hover {
     color: #b91c1c;
 }
 
+.status-delivered {
+    background: #dcfce7;
+    color: #15803d;
+}
+
 .order-status-select{
     border: none;
     border-radius: 12px;

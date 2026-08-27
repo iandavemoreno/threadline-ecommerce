@@ -16,11 +16,9 @@
                 <button id="signout-btn">Sign Out</button>
             </nav>
         </header>
-
         <main>
             <h2>Admin Dashboard</h2>
             <p id="admin-access-message"></p>
-
             <div id="admin-content" style="display: none;">
                 <h3>Add a Product</h3>
                 <form id="add-product-form">
@@ -47,23 +45,34 @@
                     <button type="submit">Add Product</button>
                     <p class="error" id="add-product-error"></p>
                 </form>
-
                 <hr>
-
                 <h3>Existing Products</h3>
                 <div id="admin-product-list"></div>
-
                 <hr>
-
                 <h3>All Orders</h3>
                 <div id="admin-order-list"></div>
+
+                <hr>
+                <h3>Coupons</h3>
+
+                <form id="add-coupon-form">
+                    <div class="form-group">
+                        <label for="new-coupon-code">Code</label>
+                        <input type="text" id="new-coupon-code" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-coupon-discount">Discount %</label>
+                        <input type="number" id="new-coupon-discount" min="1" max="100" required>
+                    </div>
+                    <button type="submit">Add Coupon</button>
+                </form>
+
+                <div id="admin-coupon-list"></div>
             </div>
         </main>
-
         <footer>
             <p>&copy; 2026 ThreadLine</p>
         </footer>
-
         <script src="script.js"></script>
         <div id="toast" class="toast"></div>
     </body>
