@@ -449,7 +449,7 @@ app.post ('/api/admin/coupons', requireAdmin, (req, res) => {
 
     const existing = db.prepare('SELECT id FROM coupons WHERE UPPER(code) = ?').get(codeValue);
     if (existing) {
-        return res.status(409),json({ error: 'A coupon with that code already exists.'});
+        return res.status(409).json({ error: 'A coupon with that code already exists.'});
     }
 
     const insert = db.prepare('INSERT INTO coupons (code, discount_percent, active) VALUES (?, ?, 1)');
