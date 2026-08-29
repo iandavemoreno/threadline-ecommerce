@@ -1,7 +1,9 @@
 const { test, expect } = require('@playwright/test');
 
 const LoginPage = require('../../pages/LoginPage');
-const { ADMIN_EMAIL, ADMIN_PASSWORD } = require('../helpers/config');
+const { ADMIN_EMAIL, ADMIN_PASSWORD, API_BASE_URL } = require('../helpers/config');
+const { createUniqueEmail } = require('../helpers/test-data');
+const { signupUser } = require('../helpers/api-helpers');
 
 test('admin can add a new coupon and it appears in the list', async ({ page }) => {
     const loginPage = new LoginPage(page);
@@ -110,4 +112,17 @@ test('admin can delete a coupon', async({ page }) => {
     await couponRow.getByRole('button', { name: 'Delete' }).click();
 
     await expect(page.locator('#admin-coupon-list')).not.toContainText(couponCode);
+});
+test('a non-admin user cannot access the admin coupon endpoint', async ({ request }) => {
+    const email = createUniqueEmail('couponnonadmin');
+    const password = 'Password123!';
+
+    await signupUser(request, email, password);
+
+    const response = await request.post(`${API_BASE_URL}/api/admin/coupons`, {
+        headers: { 'X-User-Email': email },
+        data: { code: 'SHOULDFAIL', discountPercent: 10 }
+    });
+
+    expect(response.status()).toBe(403);
 });
