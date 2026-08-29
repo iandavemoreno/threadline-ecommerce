@@ -752,6 +752,34 @@ app.get('/api/orders', (req, res) => {
     res.json(ordersWithItems);
 });
 
+app.put('/api/orders/:id/cancel', (req, res) => {
+    const userEmail = req.headers['x-user-email'];
+
+    if(!userEmail) {
+        return res.status(401).json({ error: 'Not logged in.' });
+    }
+
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(userEmail);
+    
+    if (!user) {
+        return res.status(404).json({ error: 'User not found. '});
+    }
+
+    const order = db.prepare('SELECT id, status FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, user.id);
+    
+    if (!order) {
+        return res.status(404).json({ error: 'Order not found. '});
+    }
+
+    if (order.status !== 'Pending') {
+        return res.status(400).json({ error: 'Only pending orders can be cancelled.' });
+    }
+
+    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('Cancelled', order.id);
+
+    res.json({ id: order.id, status: 'Cancelled' });
+});
+
 // Allowed order statuses for PUT /api/admin/orders/:id/status - kept as a
 // single source of truth so the validation list below can't quietly drift
 // from what the admin UI's dropdown actually offers.

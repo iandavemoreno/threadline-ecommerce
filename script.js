@@ -1275,57 +1275,121 @@ if (confirmRemoveBtn) {
 }
 
 // My Orders page
+let allOrderCache = [];
+
 function loadOrders() {
-  const listEl = document.getElementById('orders-list');
+  const listEl = document.getElementById('order-list');
   if (!listEl) return;
 
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
-  const noOrdersMessage = document.getElementById('no-orders-message');
 
   fetch('http://localhost:3000/api/orders', {
-    headers: { 'X-User-Email': loggedInUser.email }
+    headers: { 'X-User-Email': loggedInUser }
   })
   .then(function (response) {
     return response.json();
   })
   .then(function (orders) {
-
-    if (orders.length === 0) {
-      listEl.innerHTML = '';
-      noOrdersMessage.style.display = 'block';
-      return;
-    }
-
-    noOrdersMessage.style.display = 'none';
-
-    let html = '';
-
-    orders.forEach(function (order) {
-      html += '<div class="product order" id="order-' + order.id + '">';
-      html += '<h3>Order #' + order.id + '</h3>';
-      html += '<p class="order-status status-' + order.status.toLowerCase() + '">' + order.status + '</p>';
-      html += '<p>' + new Date(order.created_at).toLocaleString() + '</p>';
-      html += '<p>Shipping to: ' + order.address + '</p>';
-      html += '<ul>';
-
-      order.items.forEach(function (item) {
-        html += '<li>' + item.product_name + ' x' + item.quantity + ' - $' + item.price.toFixed(2) + '</li>';
-      });
-
-      html += '</ul>';
-
-      if (order.discount_amount > 0) {
-        html += '<p>Discount applied (' + order.coupon_code + '): -$' + order.discount_amount.toFixed(2) + '</p>';
-      }
-
-      html += '<p class="order-total">Total: $' + order.total.toFixed(2) + '</p>';
-      html += '</div>';
-    });
-
-    listEl.innerHTML = html;
+    allOrdersCache = orders;
+    renderOrdersList('All');
   })
   .catch(function () {
     listEl.innerHTML = '<p>Unable to load orders. Is the backend running?</p>';
+  });
+}
+
+function renderOrderList(filterStatus) {
+  const listEl = document.getElementById('orders-list');
+  const noOrdersMessage = document.getElementById('no-orders-message');
+  if(!listEl) return;
+
+  const filteredOrders = filterStatus === 'All'
+  ? allOrdersCache
+  : allOrderCache.filter(function (order) {
+    return order.status === filterStatus;
+  });
+
+  if (filteredOrders.length === 0) {
+    listEl.innerHTML = '';
+    noOrdersMessage.textContent = allOrdersCache.length === 0
+      ? "You haven't placed any orders yet."
+      : 'No orders found in this category.';
+    noOrdersMessage.style.display = 'block';
+    return;
+  }
+
+  noOrdersMessage.style.display = 'none';
+
+  let html = '';
+
+  filteredOrders.forEach(function (order) {
+    html += '<div class="product order" id="order-' + order.id + '">';
+    html += '<h3>Order #' + order.id + '</h3>';
+    html += '<p class="order-status status-' + order.status.toLowerCase() + '">' + order.status + '</p>';
+    html += '<p>' + new Date(order.created_at).toLocaleString() + '</p>';
+    html += '<p>Shipping to: ' + order.address + '</p>';
+    html += '<ul>';
+
+    order.items.forEach(function (item) {
+      html += '<li>' + item.product_name + ' x' + item.quantity + ' - $' + item.price.toFixed(2) + '</li>';
+    });
+
+    html += '</ul>';
+
+    if (order.discount_amount > 0) {
+      html += '<p>Discount applied (' + order.coupon_code + '): -$' + order.discount_amount.toFixed(2) + '</p>';
+    }
+
+    html += '<p class="order-total">Total: $' + order.total.toFixed(2) + '</p>';
+
+    if (order.status === 'Pending') {
+      html += '<button type="button" onclick="cancelOrder(' + order.id + ')">Cancel Order</button>';
+    }
+
+    html += '</div>';
+  });
+
+  listEl.innerHtml = html;
+}
+
+const orderTabs = document.querySelectorAll('.order-tab');
+
+orderTabs.forEach(function (tab) {
+  tab.addEventListener('click', function() {
+    orderTabs.forEach(function (t) {
+      t.classList.remove('active');
+    });
+    tab.classList.add('active');
+    renderOrdersList(tab.dataset.status);
+  });
+});
+
+// Cancel Order
+function cancelOrder(id) {
+  const confirmed = confirm('Are you sure you want to cancel this order?');
+  if (!confirmed) return;
+
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  fetch('http://localhost:3000/api/orders/' + id + '/cancel', {
+    method: 'PUT',
+    headers: { 'X-User-Email': loggedInUser.email }
+  })
+  .then(function (response) {
+    return response.json().then(function (data) {
+      return { status: response.status, data: data };
+    });
+  })
+  .then(function (result) {
+    if (result.status === 200) {
+      showToast('Order cancelled.');
+      loadOrders();
+    } else {
+      showToast(result.data.error || 'Something went wrong cancelling the order.', true);
+    }
+  })
+  .catch(function () {
+    showToast('Something went wrong. Is the backend running?', true);
   });
 }
 

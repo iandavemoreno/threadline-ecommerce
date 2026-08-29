@@ -472,3 +472,25 @@ button:disabled:hover {
         width: 100%;
     }
 }
+
+.order-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.order-tab {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    background: #f0f0f0;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #222;
+}
+
+.order-tab.active {
+    background: #1a1a2e;
+    color: #fff;
+    border-color: #1a1a2e;
+}
