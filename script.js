@@ -1278,13 +1278,13 @@ if (confirmRemoveBtn) {
 let allOrderCache = [];
 
 function loadOrders() {
-  const listEl = document.getElementById('order-list');
+  const listEl = document.getElementById('orders-list');
   if (!listEl) return;
 
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 
   fetch('http://localhost:3000/api/orders', {
-    headers: { 'X-User-Email': loggedInUser }
+    headers: { 'X-User-Email': loggedInUser.email }
   })
   .then(function (response) {
     return response.json();
@@ -1298,14 +1298,14 @@ function loadOrders() {
   });
 }
 
-function renderOrderList(filterStatus) {
+function renderOrdersList(filterStatus) {
   const listEl = document.getElementById('orders-list');
   const noOrdersMessage = document.getElementById('no-orders-message');
   if(!listEl) return;
 
   const filteredOrders = filterStatus === 'All'
   ? allOrdersCache
-  : allOrderCache.filter(function (order) {
+  : allOrdersCache.filter(function (order) {
     return order.status === filterStatus;
   });
 
@@ -1349,7 +1349,7 @@ function renderOrderList(filterStatus) {
     html += '</div>';
   });
 
-  listEl.innerHtml = html;
+  listEl.innerHTML = html;
 }
 
 const orderTabs = document.querySelectorAll('.order-tab');

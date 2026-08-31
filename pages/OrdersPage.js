@@ -27,6 +27,14 @@ class OrdersPage {
     getOrderStatus(productName) {
         return this.getOrderContaining(productName).locator('.order-status');
     }
+
+    getCancelButton(productName) {
+        return this.getOrderContaining(productName).getByRole('button', { name: 'Cancel Order' });
+    }
+
+    getTab(status) {
+        return this.page.locator(`.order-tab[data-status="${status}"]`);
+    }
 }
 
 

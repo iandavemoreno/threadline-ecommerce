@@ -26,8 +26,16 @@ async function deleteProduct(request, adminEmail, productId) {
     });
 }
 
+async function updateOrderStatus(request, adminEmail, orderId, status) {
+    await request.put(`${API_BASE_URL}/api/admin/orders/${orderId}/status`, {
+        headers: { 'X-User-Email': adminEmail },
+        data: { status }
+    });
+}
+
 module.exports = {
     signupUser,
     createProduct,
-    deleteProduct
+    deleteProduct,
+    updateOrderStatus
 };
