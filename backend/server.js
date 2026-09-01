@@ -829,3 +829,28 @@ app.listen(PORT, () => {
     console.log('Server running at http://localhost:' + PORT);
 });
 
+app.get('/api/admin/dashboard', requireAdmin, (req, res) => {
+    const { totalRevenue } = db
+    .prepare(`SELECT COALESCE(SUM(total), 0) AS totalRevenue FROM orders WHERE status != 'Cancelled'`)
+    .get();
+
+    const orderCounts = { Pending: 0, Shipped: 0, Delivered: 0, Cancelled: 0 };
+    const statusRows = db.prepare(`SELECT status, COUNT(*) AS count FROM orders GROUP BY status`).all();
+    statusRows.forEach((row) => {
+        orderCounts[row.status] = row.count;
+    });
+
+    const topProducts = db
+        .prepare(`
+            SELECT order_items.product_id AS productId, order_items.product_name AS productName, SUM(order_items.quantity) AS totalQuantity
+            FROM order_items
+            JOIN orders ON order_items.order_id = orders.id
+            WHERE orders.status != 'Cancelled'
+            GROUP BY order_items.product_id, order_items.product_name
+            ORDER BY totalQuantity DESC
+            LIMIT 5
+        `)
+        .all();
+
+    res.json({ totalRevenue, orderCounts, topProducts });
+});

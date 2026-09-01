@@ -20,6 +20,19 @@
             <h2>Admin Dashboard</h2>
             <p id="admin-access-message"></p>
             <div id="admin-content" style="display: none;">
+                <h3>Dashboard</h3>
+                <div id="dashboard-stats">
+                    <p>Total Revenue: <span id="dashboard-revenue"></span></p>
+                    <p>
+                        Pending: <span id="dashboard-count-pending"></span> |
+                        Shipped: <span id="dashboard-count-shipped"></span> |
+                        Delivered: <span id="dashboard-count-delivered"></span> |
+                        Cancelled: <span id="dashboard-count-cancelled"></span>
+                    </p>
+                </div>
+                <h4>Top Products</h4>
+                <ol id="dashboard-top-products"></ol>
+                <hr>
                 <h3>Add a Product</h3>
                 <form id="add-product-form">
                     <div class="form-group">

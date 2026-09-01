@@ -746,6 +746,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
   adminAccessMessage.textContent = 'You must be logged in as an admin to view this page.';
 } else {
   document.getElementById('admin-content').style.display = "block";
+  loadDashboard();
   loadAdminProducts();
   loadAdminOrders();
   loadAdminCoupons();
@@ -1115,6 +1116,44 @@ function loadAdminCoupons() {
   })
   .catch(function () {
     listEl.innerHTML = '<p>Unable to load coupons. Is the backend running?</p>';
+  });
+}
+
+function loadDashboard() {
+  const revenueEl = document.getElementById('dashboard-revenue');
+  if (!revenueEl) return;
+
+  fetch('http://localhost:3000/api/admin/dashboard', {
+    headers: { 'X-User-Email': JSON.parse(localStorage.getItem('loggedInUser') || 'null').email }
+  })
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function (data) {
+    revenueEl.textContent = '$' + data.totalRevenue.toFixed(2);
+
+    document.getElementById('dashboard-count-pending').textContent = data.orderCounts.Pending;
+    document.getElementById('dashboard-count-shipped').textContent = data.orderCounts.Shipped;
+    document.getElementById('dashboard-count-delivered').textContent = data.orderCounts.Delivered;
+    document.getElementById('dashboard-count-cancelled').textContent = data.orderCounts.Cancelled;
+
+    const topProductsEl = document.getElementById('dashboard-top-products');
+
+    if (data.topProducts.length === 0) {
+      topProductsEl.innerHTML = '<li>No Sales yet.</li>';
+      return;
+    }
+
+    let html = '';
+
+    data.topProducts.forEach(function (product) {
+      html += '<li>' + product.productName + ' - ' + product.totalQuantity + ' sold</li>';
+    });
+
+    topProductsEl.innerHTML = html;
+  })
+  .catch(function () {
+    revenueEl.textContent = 'Unable to load.';
   });
 }
 
