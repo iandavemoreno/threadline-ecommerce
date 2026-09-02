@@ -494,3 +494,58 @@ button:disabled:hover {
     color: #fff;
     border-color: #1a1a2e;
 }
+
+.product-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.product-image-placeholder {
+    width: 100%;
+    height: 180px;
+    background-color: #e0e0e0;
+    color: #777;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.product-detail-image {
+    width: 100%;
+    max-width: 400px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.product-detail-image-placeholder {
+    width: 100%;
+    max-width: 400px;
+    height: 300px;
+    background-color: #e0e0e0;
+    color: #777;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.admin-product-thumb {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    display: block;
+    margin-bottom: 0.5rem;
+}

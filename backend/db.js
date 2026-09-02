@@ -49,6 +49,15 @@ if (!hasDescriptionColumn) {
     db.exec("ALTER TABLE products ADD COLUMN description TEXT NOT NULL DEFAULT ''");
 }
 
+// Migration: add the image_url column for databases created before product
+// image uploads existed. DEFAULT '' means "no image uploaded yet" so the
+// frontend can fall back to a placeholder instead of a broken image tag.
+const hasImageUrlColumn = productColumns.some((col) => col.name === 'image_url');
+
+if (!hasImageUrlColumn) {
+    db.exec("ALTER TABLE products ADD COLUMN image_url TEXT NOT NULL DEFAULT ''");
+}
+
 
 // ========================================
 // USERS TABLE

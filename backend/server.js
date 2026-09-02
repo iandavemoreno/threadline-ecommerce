@@ -2,12 +2,40 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
 const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, 'uploads', 'products'));
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files (JPEG, PNG, WEBP, GIF) are allowed.'));
+        }
+    }
+});
 
 app.get('/', (req, res) => {
     res.send('Hello from the backend server!');
@@ -304,7 +332,7 @@ function parseDescription(description) {
     return String(description).trim();
 }
 
-app.post('/api/admin/products', requireAdmin, (req, res) => {
+app.post('/api/admin/products', requireAdmin, upload.single('image'), (req, res) => {
     const { name, price } = req.body;
 
     if (!name || !price) {
@@ -330,8 +358,9 @@ app.post('/api/admin/products', requireAdmin, (req, res) => {
         return res.status(409).json({error: 'A product with that name already exists.'});
     }
 
-    const insert = db.prepare('INSERT INTO products (name, price, stock, category, description) VALUES (?, ?, ?, ?, ?)');
-    const result = insert.run(name, price, stockNumber, categoryValue, finalDescription);
+    const imageUrl = req.file ? '/uploads/products/' + req.file.filename : '';
+    const insert = db.prepare('INSERT INTO products (name, price, stock, category, description, image_url) VALUES (?, ?, ?, ?, ?, ?)');
+    const result = insert.run(name, price, stockNumber, categoryValue, finalDescription, imageUrl);
 
     res.status(201).json({
         id: result.lastInsertRowid,
@@ -339,11 +368,12 @@ app.post('/api/admin/products', requireAdmin, (req, res) => {
         price: price,
         stock: stockNumber,
         category: categoryValue,
-        description: finalDescription
+        description: finalDescription,
+        image_url: imageUrl
     });
 });
 
-app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
+app.put('/api/admin/products/:id', requireAdmin, upload.single('image'), (req, res) => {
     const { id } = req.params;
     const { name, price } = req.body;
 
@@ -351,7 +381,7 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Name and price are required.' });
     }
 
-    const existingProduct = db.prepare('SELECT stock, category, description FROM products WHERE id = ?').get(id);
+    const existingProduct = db.prepare('SELECT stock, category, description, image_url FROM products WHERE id = ?').get(id);
 
     if (!existingProduct) {
         return res.status(404).json({ error: 'Product not found'});
@@ -381,14 +411,22 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
         return res.status(409).json({ error: 'A product with that name already exists.'});
     }
 
-    const update = db.prepare('UPDATE products SET name = ?, price = ?, stock = ?, category = ?, description = ? WHERE id = ?');
-    update.run(name, price, stockNumber, categoryValue, finalDescription, id);
+    const imageUrl = req.file ? '/uploads/products/' + req.file.filename : existingProduct.image_url;
+    const update = db.prepare('UPDATE products SET name = ?, price = ?, stock = ?, category = ?, description = ?, image_url = ? WHERE id = ?');
+    update.run(name, price, stockNumber, categoryValue, finalDescription, imageUrl, id);
 
-    res.json({ id, name, price, stock: stockNumber, category: categoryValue, description: finalDescription });
+    res.json({ id, name, price, stock: stockNumber, category: categoryValue, description: finalDescription, image_url: imageUrl });
 });
 
 app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
     const { id } = req.params;
+
+    const product = db.prepare('SELECT image_url FROM products WHERE id = ?').get(id);
+
+    if (product && product.image_url) {
+        fs.unlink(path.join(__dirname, product.image_url), () => {}); // best-effort, ignore errors
+    }
+
     db.prepare('DELETE FROM products WHERE id = ?').run(id);
     res.json({ message: 'Product deleted.'});
 });
@@ -823,6 +861,17 @@ app.put('/api/admin/orders/:id/status', requireAdmin, (req, res) => {
     db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, order.id);
 
     res.json({ id: order.id, status});
+});
+
+// Multer errors (invalid file type, file too large, etc.) would otherwise
+// fall through to Express's default HTML error page, which the frontend
+// can't parse as JSON - same failure mode as the missing-uploads-folder bug.
+// This catches them and responds with proper JSON instead.
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError || err.message === 'Only image files (JPEG, PNG, WEBP, GIF) are allowed.') {
+        return res.status(400).json({ error: err.message });
+    }
+    next(err);
 });
 
 app.listen(PORT, () => {

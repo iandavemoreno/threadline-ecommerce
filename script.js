@@ -135,6 +135,12 @@ function loadProducts() {
 
                     html += '<div class="product">';
 
+                    if (product.image_url) {
+                      html += '<img class="product-image" src="http://localhost:3000' + product.image_url + '" alt="' + escapeHtml(product.name) + '">';
+                    } else {
+                      html += '<div class="product-image-placeholder">No Image</div>';
+                    }
+
                     html += '<h3><a href="product.html?id=' + product.id + '">' + product.name + '</a></h3>';
 
                     html += '<p class="product-category">' + product.category + '</p>';
@@ -270,6 +276,13 @@ function loadProductDetail() {
     }
 
     let html = '';
+
+    if (currentProduct.image_url) {
+      html += '<img class="product-detail-image" src="http://localhost:3000' + currentProduct.image_url + '" alt="' + escapeHtml(currentProduct.name) + '">';
+    } else {
+      html += '<div class="product-detail-image-placeholder">No Image</div>';
+    }
+    
     html += '<h2>' + currentProduct.name + '</h2>';
     html += '<p class="product-category">' + currentProduct.category + '</p>';
     html += '<p class="product-price">$' + currentProduct.price.toFixed(2) + '</p>';
@@ -767,13 +780,24 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
       return;
     }
 
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('price', price);
+    formData.append('stock', stock);
+    formData.append('category', category);
+    formData.append('description', description);
+
+    const imageFile = document.getElementById('product-image').files[0];
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+
     fetch('http://localhost:3000/api/admin/products', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'X-User-Email': loggedInUser.email
       },
-      body: JSON.stringify({ name: name, price: price, stock: stock, category: category, description: description })
+      body: formData
     })
     .then(function (response){
       return response.json().then(function (data) {
@@ -787,6 +811,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
         document.getElementById('product-stock').value = '';
         document.getElementById('product-category').value = '';
         document.getElementById('product-description').value = '';
+        document.getElementById('product-image').value = '';
         errorEl.textContent = '';
         showToast('Product added successfully.');
         loadAdminProducts();
@@ -868,6 +893,9 @@ function loadAdminProducts() {
     products.forEach(function (product) {
       html += '<div class="product" id="product-row-' + product.id + '">';
       html += '<div class="product-view">';
+      if (product.image_url) {
+        html += '<img class="admin-product-thumb" src="http://localhost:3000' + product.image_url + '" alt="' + escapeHtml(product.name) + '">';
+      }
       html += '<h3>' + product.name + '</h3>';
       html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ') - Stock: ' + product.stock + ' - Category: ' + product.category + '</p>';
       html += '<button type="button" onclick="editAdminProduct(' + product.id + ')">Edit</button>';
@@ -908,6 +936,16 @@ function editAdminProduct(id) {
       '<label>Description</label>' +
       '<textarea id="edit-description-' + id + '" rows="3">' + escapeHtml(product.description || '') + '</textarea>' +
     '</div>' +
+    '<div class="form-group">' +
+      '<label>Current Image</label>' +
+      (product.image_url
+        ? '<img class="admin-product-thumb" src="http://localhost:3000' + product.image_url + '" alt="' + escapeHtml(product.name) + '">'
+        : '<p>No image uploaded yet.</p>') +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>Replace Image (optional)</label>' +
+      '<input type="file" id="edit-image-' + id + '" accept="image/*">' +
+    '</div>' +
     '<p class="error" id="edit-error-' + id + '"></p>' +
     '<button type="button" onclick="saveAdminProduct(' + id + ')">Save</button>' +
     '<button type="button" onclick="loadAdminProducts()">Cancel</button>';
@@ -928,13 +966,24 @@ function saveAdminProduct(id) {
     return;
   }
 
+  const formData = new FormData();
+  formData.append('name', name);
+  formData.append('price', price);
+  formData.append('stock', stock);
+  formData.append('category', category);
+  formData.append('description', description);
+
+  const imageFile = document.getElementById('edit-image-' + id).files[0];
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
+
   fetch('http://localhost:3000/api/admin/products/' + id, {
     method: 'PUT',
     headers: {
-      'Content-Type': 'application/json',
       'X-User-Email': loggedInUser.email
     },
-    body: JSON.stringify({ name: name, price: price, stock: stock, category: category, description: description })
+    body: formData
   })
   .then(function (response) {
     return response.json().then(function (data) {
