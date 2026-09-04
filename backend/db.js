@@ -88,6 +88,19 @@ if (!hasDefaultAddressColumn) {
     db.exec("ALTER TABLE users ADD COLUMN default_address TEXT NOT NULL DEFAULT ''");
 }
 
+// ========================================
+// DEFAULT ADMIN ACCOUNT (DEMO)
+// ========================================
+
+const bcrypt = require('bcryptjs');
+
+const adminExists = db.prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'admin'").get();
+
+if (adminExists.total === 0) {
+    const hashedPassword = bcrypt.hashSync('Admin123!', 10);
+    db.prepare('INSERT INTO users (email, password, role) VALUES (?, ?, ?)')
+        .run('admintest@example.com', hashedPassword, 'admin');
+}
 
 // ========================================
 // ORDERS TABLE

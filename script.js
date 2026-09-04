@@ -53,7 +53,7 @@ function loadProducts() {
 
     let allProducts = [];
 
-    fetch('http://localhost:3000/api/products')
+    fetch('http:///api/products')
         .then(function (response) {
             return response.json();
         })
@@ -136,7 +136,7 @@ function loadProducts() {
                     html += '<div class="product">';
 
                     if (product.image_url) {
-                      html += '<img class="product-image" src="http://localhost:3000' + product.image_url + '" alt="' + escapeHtml(product.name) + '">';
+                      html += '<img class="product-image" src="http://' + product.image_url + '" alt="' + escapeHtml(product.name) + '">';
                     } else {
                       html += '<div class="product-image-placeholder">No Image</div>';
                     }
@@ -278,7 +278,7 @@ function loadProductDetail() {
     let html = '';
 
     if (currentProduct.image_url) {
-      html += '<img class="product-detail-image" src="http://localhost:3000' + currentProduct.image_url + '" alt="' + escapeHtml(currentProduct.name) + '">';
+      html += '<img class="product-detail-image" src="http://' + currentProduct.image_url + '" alt="' + escapeHtml(currentProduct.name) + '">';
     } else {
       html += '<div class="product-detail-image-placeholder">No Image</div>';
     }
@@ -310,7 +310,7 @@ function loadProductDetail() {
     }
   }
 
-  fetch('http://localhost:3000/api/products/' + productId)
+  fetch('http:///api/products/' + productId)
     .then(function (response) {
       if (response.status === 404) {
         detailEl.innerHTML = '<p class="error">Product not found.</p>';
@@ -476,7 +476,7 @@ if (checkoutAccessMessage) {
     // fresh account has empty strings for both, so the truthy checks below
     // just leave the fields blank rather than overwriting anything. This
     // only pre-fills; the fields stay editable for this specific order.
-    fetch('http://localhost:3000/api/profile', {
+    fetch('http:///api/profile', {
       headers: { 'X-User-Email': loggedInUser.email }
     })
       .then(function (response) { return response.json(); })
@@ -543,7 +543,7 @@ if (applyCouponBtn) {
       return;
     }
 
-    fetch('http://localhost:3000/api/coupons/' + encodeURIComponent(code))
+    fetch('http:///api/coupons/' + encodeURIComponent(code))
       .then(function (response) {
         return response.json().then(function (data) {
           return { status: response.status, data: data };
@@ -595,7 +595,7 @@ if (checkoutForm) {
       return { productId: item.productId, quantity: 1 };
     });
 
-    fetch('http://localhost:3000/api/orders', {
+    fetch('http:///api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -665,7 +665,7 @@ if (signupForm) {
         }
         if (hasError) return;
 
-        fetch('http://localhost:3000/api/signup', {
+        fetch('http:///api/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: email, password: password})
@@ -792,7 +792,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
       formData.append('image', imageFile);
     }
 
-    fetch('http://localhost:3000/api/admin/products', {
+    fetch('http:///api/admin/products', {
       method: 'POST',
       headers: {
         'X-User-Email': loggedInUser.email
@@ -833,7 +833,7 @@ if (!loggedInUser || loggedInUser.role !== 'admin') {
       return;
     }
 
-    fetch('http://localhost:3000/api/admin/coupons', {
+    fetch('http:///api/admin/coupons', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -882,7 +882,7 @@ function loadAdminProducts() {
   const listEl = document.getElementById('admin-product-list');
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 
-  fetch('http://localhost:3000/api/products')
+  fetch('http:///api/products')
   .then(function (response) {
     return response.json();
   })
@@ -894,7 +894,7 @@ function loadAdminProducts() {
       html += '<div class="product" id="product-row-' + product.id + '">';
       html += '<div class="product-view">';
       if (product.image_url) {
-        html += '<img class="admin-product-thumb" src="http://localhost:3000' + product.image_url + '" alt="' + escapeHtml(product.name) + '">';
+        html += '<img class="admin-product-thumb" src="http://' + product.image_url + '" alt="' + escapeHtml(product.name) + '">';
       }
       html += '<h3>' + product.name + '</h3>';
       html += '<p>$' + product.price.toFixed(2) + ' (ID: ' + product.id + ') - Stock: ' + product.stock + ' - Category: ' + product.category + '</p>';
@@ -939,7 +939,7 @@ function editAdminProduct(id) {
     '<div class="form-group">' +
       '<label>Current Image</label>' +
       (product.image_url
-        ? '<img class="admin-product-thumb" src="http://localhost:3000' + product.image_url + '" alt="' + escapeHtml(product.name) + '">'
+        ? '<img class="admin-product-thumb" src="http://' + product.image_url + '" alt="' + escapeHtml(product.name) + '">'
         : '<p>No image uploaded yet.</p>') +
     '</div>' +
     '<div class="form-group">' +
@@ -978,7 +978,7 @@ function saveAdminProduct(id) {
     formData.append('image', imageFile);
   }
 
-  fetch('http://localhost:3000/api/admin/products/' + id, {
+  fetch('http:///api/admin/products/' + id, {
     method: 'PUT',
     headers: {
       'X-User-Email': loggedInUser.email
@@ -1009,7 +1009,7 @@ function deleteAdminProduct(id) {
   
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 
-  fetch('http://localhost:3000/api/admin/products/' + id, {
+  fetch('http:///api/admin/products/' + id, {
     method: 'DELETE',
     headers: { 'X-User-Email': loggedInUser.email }
   })
@@ -1035,7 +1035,7 @@ function loadAdminOrders() {
   const listEl = document.getElementById('admin-order-list');
   if (!listEl) return;
 
-  fetch('http://localhost:3000/api/admin/orders', {
+  fetch('http:///api/admin/orders', {
     headers: { 'X-User-Email': JSON.parse(localStorage.getItem('loggedInUser') || 'null').email }
   })
   .then(function(response) {
@@ -1095,7 +1095,7 @@ function updateOrderStatus(orderId, SelectEl) {
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
   const newStatus = SelectEl.value;
 
-  fetch('http://localhost:3000/api/admin/orders/' + orderId + '/status', {
+  fetch('http:///api/admin/orders/' + orderId + '/status', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -1130,7 +1130,7 @@ function loadAdminCoupons() {
   const listEl = document.getElementById('admin-coupon-list');
   if (!listEl) return;
 
-  fetch('http://localhost:3000/api/admin/coupons', {
+  fetch('http:///api/admin/coupons', {
     headers: { 'X-User-Email': JSON.parse(localStorage.getItem('loggedInUser') || 'null').email }
   })
   .then(function (response) {
@@ -1172,7 +1172,7 @@ function loadDashboard() {
   const revenueEl = document.getElementById('dashboard-revenue');
   if (!revenueEl) return;
 
-  fetch('http://localhost:3000/api/admin/dashboard', {
+  fetch('http:///api/admin/dashboard', {
     headers: { 'X-User-Email': JSON.parse(localStorage.getItem('loggedInUser') || 'null').email }
   })
   .then(function (response) {
@@ -1240,7 +1240,7 @@ function saveAdminCoupon(id) {
     return;
   }
 
-  fetch('http://localhost:3000/api/admin/coupons/' + id, {
+  fetch('http:///api/admin/coupons/' + id, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -1276,7 +1276,7 @@ function toggleCouponActive(id) {
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
   const newActive = coupon.active ? false : true;
 
-  fetch('http://localhost:3000/api/admin/coupons/' + id, {
+  fetch('http:///api/admin/coupons/' + id, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -1308,7 +1308,7 @@ function deleteAdminCoupon(id) {
 
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 
-  fetch('http://localhost:3000/api/admin/coupons/' + id, {
+  fetch('http:///api/admin/coupons/' + id, {
     method: 'DELETE',
     headers: { 'X-User-Email': loggedInUser.email }
   })
@@ -1371,7 +1371,7 @@ function loadOrders() {
 
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 
-  fetch('http://localhost:3000/api/orders', {
+  fetch('http:///api/orders', {
     headers: { 'X-User-Email': loggedInUser.email }
   })
   .then(function (response) {
@@ -1459,7 +1459,7 @@ function cancelOrder(id) {
 
   const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 
-  fetch('http://localhost:3000/api/orders/' + id + '/cancel', {
+  fetch('http:///api/orders/' + id + '/cancel', {
     method: 'PUT',
     headers: { 'X-User-Email': loggedInUser.email }
   })
@@ -1496,7 +1496,7 @@ if (ordersAccessMessage) {
 
 // My Profile page
 function loadProfile(email) {
-  fetch('http://localhost:3000/api/profile', {
+  fetch('http:///api/profile', {
     headers: { 'X-User-Email': email }
   })
     .then(function (response) {
@@ -1540,7 +1540,7 @@ if (shippingForm) {
     messageEl.textContent = '';
     messageEl.className = '';
 
-    fetch('http://localhost:3000/api/profile', {
+    fetch('http:///api/profile', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -1601,7 +1601,7 @@ if (passwordForm) {
       return;
     }
 
-    fetch('http://localhost:3000/api/profile/password', {
+    fetch('http:///api/profile/password', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -1640,7 +1640,7 @@ function loadReviews(productId) {
   const listEl = document.getElementById('reviews-list');
   if (!listEl) return;
 
-  fetch('http://localhost:3000/api/products/' + productId + '/reviews')
+  fetch('http:///api/products/' + productId + '/reviews')
     .then(function (response) { return response.json(); })
     .then(function (data) {
       if (data.reviewCount === 0) {
@@ -1704,7 +1704,7 @@ if (reviewsSection) {
         return;
       }
 
-      fetch('http://localhost:3000/api/products/' + reviewsProductId + '/reviews', {
+      fetch('http:///api/products/' + reviewsProductId + '/reviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

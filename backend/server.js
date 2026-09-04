@@ -37,9 +37,8 @@ const upload = multer({
     }
 });
 
-app.get('/', (req, res) => {
-    res.send('Hello from the backend server!');
-});
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, '..')));
 
 app.get('/api/products', (req, res) => {
     const products = db.prepare('SELECT * FROM products').all();
