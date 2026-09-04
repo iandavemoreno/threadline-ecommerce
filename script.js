@@ -865,7 +865,7 @@ function showToast(message, isError){
   if(!toastEl) return;
 
   toastEl.textContent = message;
-  toastEl.className = 'toast toast-show ' + (isError ? 'toast-error' : '');
+  toastEl.className = 'toast toast-show' + (isError ? 'toast-error' : '');
 
   setTimeout(function(){
     toastEl.className = 'toast';

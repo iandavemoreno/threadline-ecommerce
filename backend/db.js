@@ -219,12 +219,12 @@ const count = db
 if (count.total === 0) {
 
     const insert = db.prepare(
-        'INSERT INTO products (name, price, stock, category) VALUES (?, ?, ?, ?)'
+        'INSERT INTO products (name, price, stock, category, image_url) VALUES (?, ?, ?, ?, ?)'
     );
 
-    insert.run('Classic White Tee', 20.00, 15, 'T-Shirts');
-    insert.run('Black Crew Neck', 25.00, 15, 'T-Shirts');
-    insert.run('Navy Striped Tee', 22.00, 15, 'T-Shirts');
+    insert.run('Classic White Tee', 20.00, 15, 'T-Shirts', 'https://placehold.co/400x400/f5f7fa/1e2430?text=Classic+White+Tee');
+    insert.run('Black Crew Neck', 25.00, 15, 'T-Shirts', 'https://placehold.co/400x400/1e2430/ffffff?text=Black+Crew+Neck');
+    insert.run('Navy Striped Tee', 22.00, 15, 'T-Shirts', 'https://placehold.co/400x400/2563eb/ffffff?text=Navy+Striped+Tee');
 }
 
 
