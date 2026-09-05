@@ -1,4 +1,4 @@
-const CACHE_NAME = 'threadline-cache-v2';
+const CACHE_NAME = 'threadline-cache-v3';
 
 const PRECACHE_ASSETS = [
     '/index.html',
@@ -11,11 +11,13 @@ const PRECACHE_ASSETS = [
     '/signup.html',
     '/admin.html',
     '/style.css',
-    '/script.js?v=2',
+    '/script.js?v=3',
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
-    '/icons/icon-512-maskable.png'
+    '/icons/icon-512-maskable.png',
+    '/forgot-password.html',
+    '/reset-password.html'
 ];
 
 self.addEventListener('install', (event) => {

@@ -5,6 +5,7 @@ const db = require('./db');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
@@ -185,6 +186,53 @@ app.post('/api/login', (req, res) => {
         }
 
         res.json({ message: 'Login successful.', email: user.email, role: user.role });
+    });
+});
+
+app.post('/api/forgot-password', (req, res) => {
+    const { email } = req.body;
+
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+    // Always respon with the same generic message, whether or not the 
+    // email exists - this stops someone from using this form to find out
+    // which email have accounts (a real security consideration).
+    const genericResponse = { message: 'If that email exists, a password reset link has been sent.' };
+
+    if (!user) {
+        return res.json(genericResponse);
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = Date.now() + (60 * 60 * 1000); // 1 hour from now
+
+    db.prepare('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?')
+        .run(token, expiry, email);
+
+    const resetLink = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
+    console.log(`Password reset link for ${email}: ${resetLink}`);
+
+    res.json(genericResponse);
+});
+
+app.post('/api/reset-password', (req, res) => {
+    const { token, newPassword } = req.body;
+    
+    const user = db.prepare('SELECT * FROM users WHERE reset_token = ?').get(token);
+
+    if (!user || !user.reset_token_expiry || user.reset_token_expiry < Date.now()) {
+        return res.status(400).json({ error: 'Invalid or expired reset link.' });
+    }
+
+    bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
+        if (err) {
+            return res.status(500).json({ error: 'Something went wrong resetting your password.' });
+        }
+
+        db.prepare('UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?')
+            .run(hashedPassword, user.id);
+
+            res.json({ message: 'Password reset successful. You can now login.' });
     });
 });
 

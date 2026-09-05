@@ -72,6 +72,18 @@ db.exec(`
     )
 `);
 
+try {
+    db.exec(`ALTER TABLE users ADD COLUMN reset_token TEXT`);
+} catch (e) {
+    // Column already exists - safe to ignore
+}
+
+try {
+    db.exec(`ALTER TABLE users ADD COLUMN reset_token_expiry INTEGER`);
+} catch (e) {
+    // Column already exists - safe to ignore
+}
+
 // Migration: add default shipping info columns for databases created before
 // the profile page existed. DEFAULT '' means "no default saved yet" rather
 // than null, so checkout's pre-fill check (a truthy value) just skips it.
