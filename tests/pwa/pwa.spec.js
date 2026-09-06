@@ -28,7 +28,7 @@ test.describe('PWA', () => {
         });
 
         expect(registration.active).toBe(true);
-        expect(registration.scope).toContain('127.0.0.1:5500');
+        expect(registration.scope).toContain('localhost:3000');
     });
 
 
