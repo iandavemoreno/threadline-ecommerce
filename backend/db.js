@@ -193,6 +193,23 @@ db.exec(`
     )
 `);
 
+// ========================================
+// WISHLIST TABLE
+// ========================================
+
+// UNIQUE(user_id, product_id) enforces one entry per user per product at
+// the database level - adding again is a no-op (see POST /api/wishlist)
+// rather than a duplicate row.
+db.exec(`
+    CREATE TABLE IF NOT EXISTS wishlist_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, product_id)
+    )
+`);
+
 
 // ========================================
 // COUPONS TABLE

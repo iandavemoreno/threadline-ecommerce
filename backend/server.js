@@ -138,6 +138,57 @@ app.post('/api/products/:id/reviews', requireLoggedInUser, (req, res) => {
     });
 });
 
+// ========================================
+// WISHLIST ROUTES
+// ========================================
+
+app.get('/api/wishlist', requireLoggedInUser, (req, res) => {
+    const user = req.currentUser;
+
+    const items = db.prepare(`
+        SELECT products.id, products.name, products.price, products.image_url, products.stock
+        FROM wishlist_items
+        JOIN products ON products.id = wishlist_items.product_id
+        WHERE wishlist_items.user_id = ?
+        ORDER BY wishlist_items.created_at DESC
+    `).all(user.id);
+
+    res.json(items);
+});
+
+app.post('/api/wishlist', requireLoggedInUser, (req, res) => {
+    const user = req.currentUser;
+    const productId = Number(req.body.productId);
+
+    const product = db.prepare('SELECT id FROM products WHERE id = ?').get(productId);
+
+    if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // INSERT OR IGNORE: if this product is already wishlisted by this user,
+    // the UNIQUE(user_id, product_id) constraint quietly skips the insert
+    // instead of throwing, so adding an already-saved product is a no-op.
+    db.prepare(`
+        INSERT OR IGNORE INTO wishlist_items (user_id, product_id)
+        VALUES (?, ?)
+    `).run(user.id, product.id);
+
+    res.status(201).json({ message: 'Added to wishlist.' });
+});
+
+app.delete('/api/wishlist/:productId', requireLoggedInUser, (req, res) => {
+    const user = req.currentUser;
+    const productId = Number(req.params.productId);
+
+    db.prepare(`
+        DELETE FROM wishlist_items
+        WHERE user_id = ? AND product_id = ?
+    `).run(user.id, productId);
+
+    res.json({ message: 'Removed from wishlist.' });
+});
+
 app.post('/api/signup', (req, res) =>{
     const { email, password } = req.body;
 

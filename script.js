@@ -40,6 +40,87 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;');
 }
 
+let allProducts = [];
+let wishlistProductIds = [];
+
+function loadWishlist() {
+    const listEl = document.getElementById('wishlist-items');
+
+    if (!listEl) return;
+
+    const noWishlistMessage = document.getElementById('no-wishlist-message');
+    const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+    if (!loggedInUser) {
+        listEl.innerHTML = '';
+        noWishlistMessage.textContent = 'Log in to see your wishlist.';
+        noWishlistMessage.style.display = 'block';
+        return;
+    }
+
+    fetch('/api/wishlist', {
+        headers: { 'X-User-Email': loggedInUser.email }
+    })
+        .then(function (response) {
+            return response.json();
+        })
+        .then(function (items) {
+
+            if (items.length === 0) {
+                listEl.innerHTML = '';
+                noWishlistMessage.textContent = 'Your wishlist is empty.';
+                noWishlistMessage.style.display = 'block';
+                return;
+            }
+
+            noWishlistMessage.style.display = 'none';
+
+            let html = '';
+
+            items.forEach(function (product) {
+
+                html += '<div class="product">';
+
+                if (product.image_url) {
+                    html += '<img class="product-image" src="' + product.image_url + '" alt="' + escapeHtml(product.name) + '">';
+                } else {
+                    html += '<div class="product-image-placeholder">No Image</div>';
+                }
+
+                html += '<h3><a href="product.html?id=' + product.id + '">' + product.name + '</a></h3>';
+
+                html += '<p class="product-price">$' + product.price.toFixed(2) + '</p>';
+
+                html += '<button onclick="removeFromWishlist(' + product.id + ')">Remove</button>';
+
+                html += '</div>';
+            });
+
+            listEl.innerHTML = html;
+        })
+        .catch(function () {
+            listEl.innerHTML = '<p>Unable to load wishlist. Is the backend running?</p>';
+        });
+}
+
+function removeFromWishlist(productId) {
+    const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+    if (!loggedInUser) return;
+
+     fetch('/api/wishlist/' + productId, {
+        method: 'DELETE',
+        headers: { 'X-User-Email': loggedInUser.email }
+    })
+        .then(function () {
+            showToast('Removed from wishlist.');
+            loadWishlist();
+        })
+        .catch(function () {
+            showToast('Something went wrong. Is the backend running?');
+        });
+}
+
 function loadProducts() {
     const listEl = document.getElementById('product-list');
 
@@ -176,16 +257,42 @@ function loadProducts() {
                         product.price +
                         ')">Add to Cart</button>';
 
+                      const isWishListed = wishlistProductIds.indexOf(product.id) !== -1;
+
+                      html += '<button class="wishlist-btn" onclick="toggleWishlist(' +
+                        product.id + ', ' + isWishListed +
+                        ')">' + (isWishListed ? '♥ Saved' : '♡ Save') + '</button>';
+
                     html += '</div>';
                 });
 
                 listEl.innerHTML = html;
             }
 
+            // Display all products when the page loads - if the user is logged in,
+            // fetch their wishlist first so the hearts render already-filled for
+            // products they've saved, instead of flashing empty then updating.
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 
-            // Display all products when the page loads
-            applyFilters();
-
+            if (loggedInUser) {
+              fetch('/api/wishlist', {
+                headers: { 'X-User-Email': loggedInUser.email }
+              })
+                  .then(function (response) {
+                    return response.json();
+                  })
+                  .then(function (wishlistItems) {
+                      wishlistProductIds = wishlistItems.map(function (item) {
+                        return item.id;
+                      });
+                      applyFilters();
+                  })
+                  .catch(function () {
+                      applyFilters();
+                  });
+            } else {
+              applyFilters();
+            }
 
             // Search button
             if (searchBtn) {
@@ -238,6 +345,7 @@ function loadProducts() {
 }
 
 loadProducts();
+loadWishlist();
 
 // Product detail page (product.html?id=X). Guarded by #product-detail so
 // this is a no-op on every other page.
@@ -347,6 +455,38 @@ function addToCart(id, name, price) {
   showToast(name + ' added to cart!');
   // Re-render so the stock message/button reflect what's now in the cart
   loadProducts();
+}
+
+function toggleWishlist(productId, isWishlisted) {
+  const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+
+  if (!loggedInUser) {
+    showToast('Log in to save items to your wishlist.');
+    return;
+  }
+
+  const request = isWishlisted
+      ? fetch('/api/wishlist/' + productId, {
+        method: 'DELETE',
+        headers: { 'X-User-Email': loggedInUser.email }
+      })
+      : fetch('/api/wishlist', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-User-Email': loggedInUser.email
+        },
+        body: JSON.stringify({ productId: productId })
+      });
+    
+    request
+      .then(function () {
+        showToast(isWishlisted ? 'Remove from wishlist.' : 'Added to Wishlist!');
+        loadProducts();
+      })
+      .catch(function () {
+        showToast('Something went wrong. Is the backend running?');
+      });
 }
 
 function updateCartCount() {

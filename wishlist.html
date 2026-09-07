@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>My Shop - Wishlist</title>
+        <link rel="stylesheet" href="style.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="manifest" href="manifest.json">
+        <meta name="theme-color" content="#1a1a2e">
+    </head>
+
+    <body>
+
+        <header>
+            <h1>ThreadLine</h1>
+
+            <nav>
+                <a href="index.html">Home</a>
+                <a href="wishlist.html">Wishlist</a>
+                <a href="cart.html">Cart (<span id="cart-count">0</span>)</a>
+                <button id="signout-btn">Sign Out</button>
+            </nav>
+        </header>
+
+        <main>
+            <h2>Your Wishlist</h2>
+
+            <div id="wishlist-items"></div>
+
+            <p id="no-wishlist-message" style="display: none;">Your Wishlist is empty.</p>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 ThreadLine</p>
+        </footer>
+
+        <!-- Toast notification -->
+         <div id="toast" class="toast"></div>
+
+         <script src="script.js?v=4"></script>
+    </body>
+</html>

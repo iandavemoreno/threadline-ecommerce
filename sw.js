@@ -1,4 +1,4 @@
-const CACHE_NAME = 'threadline-cache-v3';
+const CACHE_NAME = 'threadline-cache-v4';
 
 const PRECACHE_ASSETS = [
     '/index.html',
@@ -11,7 +11,7 @@ const PRECACHE_ASSETS = [
     '/signup.html',
     '/admin.html',
     '/style.css',
-    '/script.js?v=3',
+    '/script.js?v=4',
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
