@@ -57,6 +57,14 @@ class HomePage {
     getProductLink(productName) {
         return this.getProduct(productName).locator('a');
     }
+
+    getWishlistButton(productName) {
+        return this.getProduct(productName).locator('.wishlist-btn');
+    }
+
+    async toggleWishlist(productName) {
+        await this.getWishlistButton(productName).click();
+    }
 }
 
 
