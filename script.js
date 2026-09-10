@@ -542,6 +542,7 @@ function renderCart() {
 }
 
 let itemToRemove = null;
+let lastFocusedElement = null;
 
 function removeFromCart(index) {
     const cart = getCart();
@@ -560,7 +561,9 @@ function removeFromCart(index) {
         message.textContent =
             'Are you sure you want to remove "' + product.name + '" from your cart?';
 
+        lastFocusedElement = document.activeElement;
         modal.classList.add('show');
+        document.getElementById('cancel-remove').focus();
     }
 }
 
@@ -1579,8 +1582,42 @@ if (cancelRemoveBtn) {
     cancelRemoveBtn.addEventListener('click', function () {
         document.getElementById('remove-modal').classList.remove('show');
         itemToRemove = null;
+        if (lastFocusedElement) {
+            lastFocusedElement.focus();
+        }
     });
 }
+
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+        const removeModal = document.getElementById('remove-modal');
+        if (removeModal && removeModal.classList.contains('show')) {
+            removeModal.classList.remove('show');
+            itemToRemove = null;
+            if (lastFocusedElement) {
+                lastFocusedElement.focus();
+            }
+        }
+    }
+});
+
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Tab') {
+        const removeModal = document.getElementById('remove-modal');
+        if (removeModal && removeModal.classList.contains('show')) {
+          const firstFocusable = document.getElementById('cancel-remove');
+          const lastFocusable = document.getElementById('confirm-remove');
+
+          if (event.shiftKey && document.activeElement === firstFocusable) {
+            event.preventDefault();
+            lastFocusable.focus();
+          } else if (!event.shiftKey && document.activeElement === lastFocusable) {
+            event.preventDefault();
+            firstFocusable.focus();
+          }
+        }
+    }
+});
 
 if (confirmRemoveBtn) {
     confirmRemoveBtn.addEventListener('click', function () {
@@ -1605,6 +1642,10 @@ if (confirmRemoveBtn) {
         showToast(product.name + ' removed from cart!');
 
         itemToRemove = null;
+
+        if (lastFocusedElement) {
+            lastFocusedElement.focus();
+        }
 
         renderCart();
     });
