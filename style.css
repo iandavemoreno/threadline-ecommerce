@@ -490,9 +490,32 @@ button:disabled:hover {
 }
 
 .order-tab.active {
-    background: #1a1a2e;
     color: #fff;
-    border-color: #1a1a2e;
+}
+
+.order-tab.active[data-status="All"] {
+    background: #1a1a2e;
+    border-color: #1a1ae2;
+}
+
+.order-tab.active[data-status="Pending"] {
+    background: #999;
+    border-color: #999;
+}
+
+.order-tab.active[data-status="Shipped"] {
+    background: #999;
+    border-color: #999;
+}
+
+.order-tab.active[data-status="Delivered"] {
+    background: #15803d;
+    border-color: #15803d;
+}
+
+.order-tab.active[data-status="Cancelled"] {
+    background: #b91c1c;
+    border-color: #b91c1c;
 }
 
 .product-image {
@@ -548,4 +571,27 @@ button:disabled:hover {
     border-radius: 4px;
     display: block;
     margin-bottom: 0.5rem;
+}
+
+/* Admin theme */
+
+body.admin-page {
+    background: #eef1fb;
+}
+
+.admin-page header {
+    background-color: #1e1b4b;
+}
+
+.admin-page button {
+    background-color: #4338ca;
+}
+
+.admin-page button:hover {
+    background-color: #3730a3;
+}
+
+.admin-page .order-tab.active {
+    background: #4338ca;
+    border-color: #4338ca;
 }

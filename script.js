@@ -5,6 +5,14 @@ if ('serviceWorker' in navigator) {
             .catch((error) => console.error('Service worker registration failed:', error));
     });
 }
+
+const currentUserForTheme = JSON.parse(localStorage.getItem('loggedInUser'));
+if (currentUserForTheme && currentUserForTheme.role === 'admin') {
+  document.body.classList.add('admin-page');
+}
+
+
+
 // Show "My Orders" and "My Profile" links for any logged-in user, and an
 // Admin link on top of that for admins
 const loggedInUserNav = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
